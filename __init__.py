@@ -59,7 +59,7 @@ class Metrics:
         for metric in self.metrics:
             if reset:
                 metric['scorer'].reset()
-            metric['scorer'].update(predicts, targets)
+            metric['scorer'].update(predicts, targets.long())
             metric['meter'].update(metric['scorer'].compute())
         self.batch_time.update(time.perf_counter() - self.start_time)
         self.start_time = time.perf_counter()
