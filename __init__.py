@@ -73,7 +73,7 @@ class Metrics:
         agg_metrics = []
         if show_batch_time:
             agg_metrics.append(f"Batch Time {timedelta(seconds=self.batch_time.val)} ({timedelta(seconds=self.batch_time.avg)})")
-        agg_metrics.append(f"Loss {self.losses.val:.4f} ({self.losses.avg:.4f})")
+        agg_metrics.append(f"Loss {self.losses.val:.4f} ({self.losses.avg:.4f})\n")
         for metric in self.metrics:
             agg_metrics.append(f'{metric["name"]} {metric["meter"].val:.3f} ({metric["meter"].avg:.3f})')
         return '\t'.join(agg_metrics)
