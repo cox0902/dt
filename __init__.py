@@ -239,14 +239,14 @@ class Trainer:
         hypotheses = []
 
         with torch.no_grad():
-            for i, (images, targets) in enumerate(data_loader):
+            for i, (sample, targets) in enumerate(data_loader):
                 if type(sample) in [tuple, list]:
                     sample = [each.to(self.device) for each in sample]     
                 else:
                     sample = sample.to(self.device)  
                 targets = targets.to(self.device)
 
-                predict = self.model(images)
+                predict = self.model(sample)
                 logits = torch.sigmoid(predict) if self.use_logits else predict
 
                 loss = self.criterion(predict, targets)
@@ -276,14 +276,14 @@ class Trainer:
         hypotheses = []
 
         with torch.no_grad():
-            for i, (images, targets) in enumerate(data_loader):
+            for i, (sample, targets) in enumerate(data_loader):
                 if type(sample) in [tuple, list]:
                     sample = [each.to(self.device) for each in sample]     
                 else:
                     sample = sample.to(self.device)  
                 targets = targets.to(self.device)
 
-                predict = self.model(images)
+                predict = self.model(sample)
                 logits = torch.sigmoid(predict) if self.use_logits else predict
 
                 metrics.update(None, None)  # 
