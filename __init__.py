@@ -192,12 +192,15 @@ class Trainer:
         # losses = AverageMeter()
         # scores = AverageMeter()
 
-        start_time = time.perf_counter()
-        for i, (images, targets) in enumerate(data_loader):
-            images = images.to(self.device)
+        # start_time = time.perf_counter()
+        for i, (sample, targets) in enumerate(data_loader):
+            if type(sample) in ['tuple', 'list']:
+                sample = [each.to(self.device) for each in sample]     
+
+            # images = images.to(self.device)
             targets = targets.to(self.device)
 
-            predict = self.model(images)
+            predict = self.model(sample)
             logits = torch.sigmoid(predict) if self.use_logits else predict
             # print(predict.shape)
 
@@ -235,7 +238,8 @@ class Trainer:
 
         with torch.no_grad():
             for i, (images, targets) in enumerate(data_loader):
-                images = images.to(self.device)
+                if type(sample) in ['tuple', 'list']:
+                    sample = [each.to(self.device) for each in sample]     
                 targets = targets.to(self.device)
 
                 predict = self.model(images)
@@ -269,7 +273,8 @@ class Trainer:
 
         with torch.no_grad():
             for i, (images, targets) in enumerate(data_loader):
-                images = images.to(self.device)
+                if type(sample) in ['tuple', 'list']:
+                    sample = [each.to(self.device) for each in sample]     
                 targets = targets.to(self.device)
 
                 predict = self.model(images)
