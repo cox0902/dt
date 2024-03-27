@@ -194,7 +194,7 @@ class Trainer:
 
         # start_time = time.perf_counter()
         for i, (sample, targets) in enumerate(data_loader):
-            if type(sample) in ['tuple', 'list']:
+            if type(sample) in [tuple, list]:
                 sample = [each.to(self.device) for each in sample]   
             else:
                 sample = sample.to(self.device)  
@@ -240,7 +240,7 @@ class Trainer:
 
         with torch.no_grad():
             for i, (images, targets) in enumerate(data_loader):
-                if type(sample) in ['tuple', 'list']:
+                if type(sample) in [tuple, list]:
                     sample = [each.to(self.device) for each in sample]     
                 else:
                     sample = sample.to(self.device)  
@@ -277,7 +277,7 @@ class Trainer:
 
         with torch.no_grad():
             for i, (images, targets) in enumerate(data_loader):
-                if type(sample) in ['tuple', 'list']:
+                if type(sample) in [tuple, list]:
                     sample = [each.to(self.device) for each in sample]     
                 else:
                     sample = sample.to(self.device)  
