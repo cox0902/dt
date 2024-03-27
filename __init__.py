@@ -195,7 +195,9 @@ class Trainer:
         # start_time = time.perf_counter()
         for i, (sample, targets) in enumerate(data_loader):
             if type(sample) in ['tuple', 'list']:
-                sample = [each.to(self.device) for each in sample]     
+                sample = [each.to(self.device) for each in sample]   
+            else:
+                sample = sample.to(self.device)  
 
             # images = images.to(self.device)
             targets = targets.to(self.device)
@@ -240,6 +242,8 @@ class Trainer:
             for i, (images, targets) in enumerate(data_loader):
                 if type(sample) in ['tuple', 'list']:
                     sample = [each.to(self.device) for each in sample]     
+                else:
+                    sample = sample.to(self.device)  
                 targets = targets.to(self.device)
 
                 predict = self.model(images)
@@ -275,6 +279,8 @@ class Trainer:
             for i, (images, targets) in enumerate(data_loader):
                 if type(sample) in ['tuple', 'list']:
                     sample = [each.to(self.device) for each in sample]     
+                else:
+                    sample = sample.to(self.device)  
                 targets = targets.to(self.device)
 
                 predict = self.model(images)
