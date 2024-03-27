@@ -3,6 +3,7 @@ from typing import Optional, List, Tuple, Any, Dict
 import os
 import time
 import random
+import hashlib
 import numpy as np
 from datetime import timedelta
 
@@ -54,13 +55,15 @@ class Metrics:
         } for each_name, each_scorer in metrics.items()]
         self.scorer = scorer
 
-    def update(self, loss, predicts, targets, reset: bool = True):
-        self.losses.update(loss)
-        for metric in self.metrics:
-            if reset:
-                metric['scorer'].reset()
-            metric['scorer'].update(predicts, targets.long())
-            metric['meter'].update(metric['scorer'].compute())
+    def update(self, predicts, targets, loss = None, reset: bool = True):
+        if loss is not None:
+            self.losses.update(loss)
+        if predicts is not None and targets is not None:
+            for metric in self.metrics:
+                if reset:
+                    metric['scorer'].reset()
+                metric['scorer'].update(predicts, targets.long())
+                metric['meter'].update(metric['scorer'].compute())
         self.batch_time.update(time.perf_counter() - self.start_time)
         self.start_time = time.perf_counter()
 
@@ -69,13 +72,26 @@ class Metrics:
         scorer.update(hypotheses, references)
         return scorer.compute()
 
-    def format(self, show_batch_time: bool = True):
+    def format(self, show_scores: bool = True, show_average: bool = True, show_batch_time: bool = True, show_loss: bool = True):
         agg_metrics = []
         if show_batch_time:
-            agg_metrics.append(f"Batch Time {timedelta(seconds=self.batch_time.val)} ({timedelta(seconds=self.batch_time.avg)})")
-        agg_metrics.append(f"Loss {self.losses.val:.4f} ({self.losses.avg:.4f})\n")
-        for metric in self.metrics:
-            agg_metrics.append(f'{metric["name"]} {metric["meter"].val:.3f} ({metric["meter"].avg:.3f})')
+            str_inline = f"Batch Time {timedelta(seconds=self.batch_time.val)}"
+            if show_average:
+                str_inline += f" ({timedelta(seconds=self.batch_time.avg)})"
+            agg_metrics.append(str_inline)
+        if show_loss:
+            str_inline = f"Loss {self.losses.val:.4f}"
+            if show_average:
+                str_inline += f" ({self.losses.avg:.4f})"
+            agg_metrics.append(str_inline)
+        if show_batch_time or show_loss:
+            agg_metrics.append("\n")
+        if show_scores:
+            for metric in self.metrics:
+                str_inline = f'{metric["name"]} {metric["meter"].val:.3f}'
+                if show_average:
+                    str_inline += f' ({metric["meter"].avg:.3f})'
+                agg_metrics.append(str_inline)
         return '\t'.join(agg_metrics)
 
 
@@ -93,8 +109,10 @@ class Trainer:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(self.device)
 
-        self.model = model.to(self.device)
-        self.criterion = criterion.to(self.device)
+        if model is not None:
+            self.model = model.to(self.device)
+        if criterion is not None:
+            self.criterion = criterion.to(self.device)
         self.optimizer = optimizer
 
     def adjust_learning_rate(self, shrink_factor: float):
@@ -117,6 +135,7 @@ class Trainer:
             'epochs_since_improvement': epochs_since_improvement,
             'score': score,
             'model': self.model,
+            'criterion': self.criterion,
             'optimizer': self.optimizer,
         }
         if is_best:
@@ -124,13 +143,47 @@ class Trainer:
         else:
             torch.save(state, 'checkpoint_3407.pth.tar')
 
-    def load_checkpoint(self, is_best: bool):
-        if is_best:
-            saved = torch.load('BEST_3407.pth.tar')
-        else:
-            saved = torch.load('checkpoint_3407.pth.tar')
-        self.model = saved['model']
-        self.optimizer = saved['optimizer']
+    @staticmethod
+    def load_checkpoint(save_file: str = None, is_best: bool = True):
+        if save_file is None:
+            if is_best:
+                save_file = 'BEST_3407.pth.tar'
+            else:
+                save_file = 'checkpoint_3407.pth.tar'
+        
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        saved = torch.load(save_file, map_location=device)
+
+        use_logits = saved['use_logits']
+
+        model = saved['model']
+        criterion = saved['criterion'] if 'criterion' in saved else None
+        optimizer = saved['optimizer']
+
+        md5 = hashlib.md5()  # ignore
+        for arg in model.parameters():
+            x = arg.data
+            if hasattr(x, "cpu"):
+                md5.update(x.cpu().numpy().data.tobytes())
+            elif hasattr(x, "numpy"):
+                md5.update(x.numpy().data.tobytes())
+            elif hasattr(x, "data"):
+                md5.update(x.data.tobytes())
+            else:
+                try:
+                    md5.update(x.encode("utf-8"))
+                except:
+                    md5.update(str(x).encode("utf-8"))
+
+        print(f"Loaded {md5.hexdigest()}")
+        print(f"  from '{save_file}'")
+        print(f"- use_logits: {saved['use_logits']}")
+        print(f"- epoch     : {saved['epoch']}")
+        print(f"- epochs_since_improvement: {saved['epochs_since_improvement']}")
+        print(f"- score     : {saved['score']}")
+
+        return Trainer(model=model, criterion=criterion, optimizer=optimizer,
+                       use_logits=use_logits)
 
     def train(self, data_loader: DataLoader, metrics: Metrics, epoch: int, proof_of_concept: bool = False):
         self.model.train()
@@ -166,7 +219,7 @@ class Trainer:
             # batch_time.update(time.perf_counter() - start_time)
             # start_time = time.perf_counter()
 
-            metrics.update(loss=loss.item(), predicts=logits.squeeze(), targets=targets.squeeze())
+            metrics.update(predicts=logits.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
             if i % self.print_freq == 0:
                 print(f"Epoch [{epoch}][{i}/{len(data_loader)}]\t{metrics.format()}")
@@ -177,17 +230,9 @@ class Trainer:
     def valid(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False):
         self.model.eval()
 
-        # batch_time = AverageMeter()
-        # losses = AverageMeter()
-        # scores = [
-        #     { "name": "Acc", "meter": AverageMeter(), "scorer": BinaryAccuracy() },
-        #     { "name": "AUC", "meter": AverageMeter(), "scorer": BinaryAUROC() },
-        # ]
-
         references = []
         hypotheses = []
 
-        start_time = time.perf_counter()
         with torch.no_grad():
             for i, (images, targets) in enumerate(data_loader):
                 images = images.to(self.device)
@@ -198,24 +243,9 @@ class Trainer:
 
                 loss = self.criterion(predict, targets)
 
-                # losses.update(loss.item())
-
-                # for score in scores:
-                #     score["scorer"].reset()
-                #     score["scorer"].update(logits.squeeze(), targets.squeeze())
-                #     score["meter"].update(score["scorer"].compute())
-
-                # batch_time.update(time.perf_counter() - start_time)
-                # start_time = time.perf_counter()
-
-                metrics.update(loss=loss.item(), predicts=logits.squeeze(), targets=targets.squeeze())
+                metrics.update(predicts=logits.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
                 if i % self.print_freq == 0:
-                    # print_str = f''
-                    # print_str += f'Batch Time {timedelta(seconds=batch_time.val)} ({timedelta(seconds=batch_time.avg)})\t'
-                    # print_str += f'Loss {losses.val:.4f} ({losses.avg:.4f})\t'
-                    # for score in scores:
-                    #     print_str += f'{score["name"]} {score["meter"].val:.3f} ({score["meter"].avg:.3f})\t'
                     print(f'\nValidation [{i}/{len(data_loader)}]\t{metrics.format()}')
 
                 references.extend(targets.squeeze())
@@ -224,21 +254,44 @@ class Trainer:
                 if proof_of_concept:
                     break
 
-            # print_str = ", ".join([f'{score["name"]} {score["meter"].avg:.3f}' for score in scores])
+            hypotheses = torch.Tensor(hypotheses)
+            references = torch.Tensor(references)
+            metrics.update(predicts=hypotheses, targets=references)
             print(f'\n * {metrics.format(show_batch_time=False)}')
 
-        # f1_score = BinaryAUROC()
-        # f1_score.update(torch.Tensor(hypotheses), torch.Tensor(references))
+        return metrics.compute(hypotheses, references)
+    
+    def test(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False):
+        self.model.eval()
 
-        # bcm = BinaryConfusionMatrix()
-        # bcm.update(torch.Tensor(hypotheses), torch.Tensor(references).long())
-        # m = bcm.compute().long()
-        # print(tabulate([["T", f"TP {m[0][0]}", f"FN {m[0][1]}"], ["F", f"FP {m[1][0]}", f"TN {m[1][1]}"]], 
-        #             headers=["", "P", "N"], tablefmt="psql"))
-        # print()
+        references = []
+        hypotheses = []
 
-        # return f1_score.compute()
-        return metrics.compute(torch.Tensor(hypotheses), torch.Tensor(references))
+        with torch.no_grad():
+            for i, (images, targets) in enumerate(data_loader):
+                images = images.to(self.device)
+                targets = targets.to(self.device)
+
+                predict = self.model(images)
+                logits = torch.sigmoid(predict) if self.use_logits else predict
+
+                metrics.update(None, None)  # 
+
+                if i % self.print_freq == 0:
+                    print(f'Test [{i}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
+
+                references.extend(targets.squeeze())
+                hypotheses.extend(logits.squeeze())
+
+                if proof_of_concept:
+                    break
+
+            hypotheses = torch.Tensor(hypotheses)
+            references = torch.Tensor(references)
+            metrics.update(predicts=hypotheses, targets=references)
+            print(f'\n* {metrics.format(show_average=False, show_batch_time=False, show_loss=False)}')
+
+            metrics.compute(hypotheses, references)
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
             proof_of_concept: bool = False):
