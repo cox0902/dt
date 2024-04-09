@@ -202,7 +202,7 @@ class Trainer:
 
         for i, samples in enumerate(data_loader):
             samples = self.to_device(samples)
-            loss, logits, targets = self.collect_batch(samples, metrics)
+            loss, logits, targets = self.collect_batch(samples)
             # if type(sample) in [tuple, list]:
             #     sample = [each.to(self.device) for each in sample]   
             # else:
