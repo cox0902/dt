@@ -187,14 +187,10 @@ class Trainer:
         return Trainer(model=model, criterion=criterion, optimizer=optimizer,
                        use_logits=use_logits)
     
-    def to_device(self, *data):
-        decompose = []
-        for each in data:
-            if type(each) in [tuple, list]:
-                decompose.append(self.to_device(*each))
-            else:
-                decompose.append(each.to(self.device))
-        return decompose
+    def to_device(self, data):
+        if type(data) in [tuple, list]:
+            return [self.to_device(each) for each in data]
+        return data.to(self.device)
     
     def collect_batch(self, samples):
         sources, targets = samples
