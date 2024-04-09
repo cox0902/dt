@@ -188,8 +188,14 @@ class Trainer:
                        use_logits=use_logits)
     
     def to_device(self, *data):
-        return [self.to_device(*each) if type(each) in [tuple, list] else each.to(self.device) for each in data]
-
+        decompose = []
+        for each in data:
+            if type(each) in [tuple, list]:
+                decompose.append(self.to_device(*each))
+            else:
+                decompose.append(each.to(self.device))
+        return decompose
+    
     def collect_batch(self, samples):
         sources, targets = samples
         predicts = self.model(sources)
