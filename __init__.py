@@ -84,10 +84,12 @@ class Metrics:
             if show_average:
                 str_inline += f" ({self.losses.avg:.4f})"
             agg_metrics.append(str_inline)
-        if show_batch_time or show_loss:
-            agg_metrics.append("\n")
+        # if show_batch_time or show_loss:
+        #     agg_metrics.append("\n")
         if show_scores:
-            for metric in self.metrics:
+            for i, metric in enumerate(self.metrics):
+                if i % 5 == 0:
+                    agg_metrics.append("\n")
                 str_inline = f'{metric["name"]} {metric["meter"].val:.3f}'
                 if show_average:
                     str_inline += f' ({metric["meter"].avg:.3f})'
@@ -184,29 +186,34 @@ class Trainer:
 
         return Trainer(model=model, criterion=criterion, optimizer=optimizer,
                        use_logits=use_logits)
+    
+    def to_device(self, *data):
+        return [self.to_device(*each) if type(each) in [tuple, list] else each.to(self.device) for each in data]
+
+    def collect_batch(self, samples):
+        sources, targets = samples
+        predicts = self.model(sources)
+        logits = torch.sigmoid(predicts) if self.use_logits else predicts
+        loss = self.criterion(predicts, targets)
+        return loss, logits, targets
 
     def train(self, data_loader: DataLoader, metrics: Metrics, epoch: int, proof_of_concept: bool = False):
         self.model.train()
 
-        # batch_time = AverageMeter()
-        # losses = AverageMeter()
-        # scores = AverageMeter()
+        for i, samples in enumerate(data_loader):
+            samples = self.to_device(samples)
+            loss, logits, targets = self.collect_batch(samples, metrics)
+            # if type(sample) in [tuple, list]:
+            #     sample = [each.to(self.device) for each in sample]   
+            # else:
+            #     sample = sample.to(self.device)  
 
-        # start_time = time.perf_counter()
-        for i, (sample, targets) in enumerate(data_loader):
-            if type(sample) in [tuple, list]:
-                sample = [each.to(self.device) for each in sample]   
-            else:
-                sample = sample.to(self.device)  
+            # targets = targets.to(self.device)
 
-            # images = images.to(self.device)
-            targets = targets.to(self.device)
+            # predict = self.model(sample)
+            # logits = torch.sigmoid(predict) if self.use_logits else predict
 
-            predict = self.model(sample)
-            logits = torch.sigmoid(predict) if self.use_logits else predict
-            # print(predict.shape)
-
-            loss = self.criterion(predict, targets)
+            # loss = self.criterion(predict, targets)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -215,14 +222,6 @@ class Trainer:
                 self.clip_gradient(self.grad_clip)
 
             self.optimizer.step()
-
-            # scorer = BinaryAUROC()  # BinaryF1Score()
-            # scorer.update(logits.squeeze(), targets.squeeze())
-            
-            # losses.update(loss.item())
-            # scores.update(scorer.compute())
-            # batch_time.update(time.perf_counter() - start_time)
-            # start_time = time.perf_counter()
 
             metrics.update(predicts=logits.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
@@ -239,17 +238,19 @@ class Trainer:
         hypotheses = []
 
         with torch.no_grad():
-            for i, (sample, targets) in enumerate(data_loader):
-                if type(sample) in [tuple, list]:
-                    sample = [each.to(self.device) for each in sample]     
-                else:
-                    sample = sample.to(self.device)  
-                targets = targets.to(self.device)
+            for i, samples in enumerate(data_loader):
+                samples = self.to_device(samples)
+                loss, logits, targets = self.collect_batch(samples)
+                # if type(sample) in [tuple, list]:
+                #     sample = [each.to(self.device) for each in sample]     
+                # else:
+                #     sample = sample.to(self.device)  
+                # targets = targets.to(self.device)
 
-                predict = self.model(sample)
-                logits = torch.sigmoid(predict) if self.use_logits else predict
+                # predict = self.model(sample)
+                # logits = torch.sigmoid(predict) if self.use_logits else predict
 
-                loss = self.criterion(predict, targets)
+                # loss = self.criterion(predict, targets)
 
                 metrics.update(predicts=logits.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
@@ -276,15 +277,17 @@ class Trainer:
         hypotheses = []
 
         with torch.no_grad():
-            for i, (sample, targets) in enumerate(data_loader):
-                if type(sample) in [tuple, list]:
-                    sample = [each.to(self.device) for each in sample]     
-                else:
-                    sample = sample.to(self.device)  
-                targets = targets.to(self.device)
+            for i, samples in enumerate(data_loader):
+                samples = self.to_device(samples)
+                _, logits, targets = self.collect_batch(samples)
+                # if type(sample) in [tuple, list]:
+                #     sample = [each.to(self.device) for each in sample]     
+                # else:
+                #     sample = sample.to(self.device)  
+                # targets = targets.to(self.device)
 
-                predict = self.model(sample)
-                logits = torch.sigmoid(predict) if self.use_logits else predict
+                # predict = self.model(sample)
+                # logits = torch.sigmoid(predict) if self.use_logits else predict
 
                 metrics.update(None, None)  # 
 
