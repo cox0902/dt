@@ -32,5 +32,6 @@ class GuiVisDataset(Dataset):
     
     @property
     def sample_weights(self):
-        labels_weights = 1.0 / np.bincount(self.labels)
-        return labels_weights[self.labels]
+        labels = self.labels[:, 2]
+        labels_weights = 1.0 / np.bincount(labels)
+        return labels_weights[labels]
