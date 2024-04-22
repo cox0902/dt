@@ -206,17 +206,6 @@ class Trainer:
         for i, samples in enumerate(data_loader):
             samples = self.to_device(samples)
             loss, logits, targets = self.collect_batch(samples)
-            # if type(sample) in [tuple, list]:
-            #     sample = [each.to(self.device) for each in sample]   
-            # else:
-            #     sample = sample.to(self.device)  
-
-            # targets = targets.to(self.device)
-
-            # predict = self.model(sample)
-            # logits = torch.sigmoid(predict) if self.use_logits else predict
-
-            # loss = self.criterion(predict, targets)
 
             self.optimizer.zero_grad()
             loss.backward()
@@ -244,16 +233,6 @@ class Trainer:
             for i, samples in enumerate(data_loader):
                 samples = self.to_device(samples)
                 loss, logits, targets = self.collect_batch(samples)
-                # if type(sample) in [tuple, list]:
-                #     sample = [each.to(self.device) for each in sample]     
-                # else:
-                #     sample = sample.to(self.device)  
-                # targets = targets.to(self.device)
-
-                # predict = self.model(sample)
-                # logits = torch.sigmoid(predict) if self.use_logits else predict
-
-                # loss = self.criterion(predict, targets)
 
                 metrics.update(predicts=logits.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
@@ -283,15 +262,7 @@ class Trainer:
             for i, samples in enumerate(data_loader):
                 samples = self.to_device(samples)
                 _, logits, targets = self.collect_batch(samples)
-                # if type(sample) in [tuple, list]:
-                #     sample = [each.to(self.device) for each in sample]     
-                # else:
-                #     sample = sample.to(self.device)  
-                # targets = targets.to(self.device)
-
-                # predict = self.model(sample)
-                # logits = torch.sigmoid(predict) if self.use_logits else predict
-
+               
                 metrics.update(None, None)  # 
 
                 if i % self.print_freq == 0:
@@ -309,6 +280,7 @@ class Trainer:
             print(f'\n* {metrics.format(show_average=False, show_batch_time=False, show_loss=False)}')
 
             metrics.compute(hypotheses, references)
+        return hypotheses, references
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
             proof_of_concept: bool = False):
