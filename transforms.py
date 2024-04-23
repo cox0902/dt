@@ -5,7 +5,7 @@ import torchvision.transforms.v2.functional as F
 from torchvision import tv_tensors
 
 
-class GuiVisPreset:
+class GuiVisPresetTrain:
     def __init__(
             self,
             mean = (0.485, 0.456, 0.406),
@@ -37,3 +37,20 @@ class GuiVisPreset:
         return self.transforms_all(
             img, tv_tensors.Mask(img_mask), 
             tv_tensors.BoundingBoxes(img_rect, format="XYXY", canvas_size=(256, 256)))
+
+
+class GuiVisPresetEval:
+    def __init__(
+            self,
+            mean = (0.485, 0.456, 0.406),
+            std = (0.229, 0.224, 0.225),
+    ):
+        self.transforms = T.Compose([
+            T.ToDtype(torch.float, scale=True),
+            T.Normalize(mean=mean, std=std),
+            T.ToPureTensor()
+        ])
+
+    def __call__(self, img, img_mask, img_rect):
+        return self.transforms(img), img_mask, img_rect
+    

@@ -26,8 +26,8 @@ class GuiVisDataset(Dataset):
             return self.__getoovitem()
         img_idx, _, label = self.labels[i]
         img = torch.from_numpy(self.images[img_idx])
-        img_mask = torch.from_numpy(self.masks[i] / 255.)
-        img_rect = torch.from_numpy(self.rects[i])
+        img_mask = torch.FloatTensor(self.masks[i] / 255.)
+        img_rect = torch.FloatTensor(self.rects[i])
         # img = torch.FloatTensor(self.images[img_idx] / 255.)
         # img_mask = torch.FloatTensor(self.masks[i] / 255.)
         if self.transform is not None:
