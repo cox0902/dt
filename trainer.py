@@ -5,10 +5,33 @@ import hashlib
 import torch
 from torch import nn
 from torch import optim
-from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn, update_bn
+from torch.optim.swa_utils import AveragedModel
 from torch.utils.data import DataLoader
 
 from .metrics import Metrics
+
+
+class ExponentialMovingAverage(AveragedModel):
+    """Maintains moving averages of model parameters using an exponential decay.
+    ``ema_avg = decay * avg_model_param + (1 - decay) * model_param``
+    `torch.optim.swa_utils.AveragedModel <https://pytorch.org/docs/stable/optim.html#custom-averaging-strategies>`_
+    is used to compute the EMA.
+    """
+
+    decay: float = 0.999
+
+    def __init__(self, model):
+        super().__init__(model, multi_avg_fn=self.ema_update, use_buffers=True)
+
+    @staticmethod
+    def ema_update(ema_param_list, current_param_list, _):
+        with torch.no_grad():
+            # foreach lerp only handles float and complex
+            if torch.is_floating_point(ema_param_list[0]) or torch.is_complex(ema_param_list[0]):
+                torch._foreach_lerp_(ema_param_list, current_param_list, 1 - ExponentialMovingAverage.decay)
+            else:
+                for p_ema, p_model in zip(ema_param_list, current_param_list):
+                    p_ema.copy_(p_ema * ExponentialMovingAverage.decay + p_model * (1 - ExponentialMovingAverage.decay))
 
 
 class Trainer:
@@ -29,8 +52,7 @@ class Trainer:
 
         self.ema_model = None
         if is_ema:
-            self.ema_model = AveragedModel(model, multi_avg_fn=get_ema_multi_avg_fn(0.999), 
-                                           use_buffers=True)
+            self.ema_model = ExponentialMovingAverage(self.model)
 
         if criterion is not None:
             self.criterion = criterion.to(self.device)

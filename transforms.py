@@ -10,6 +10,7 @@ class GuiVisPresetTrain:
             self,
             mean = (0.485, 0.456, 0.406),
             std = (0.229, 0.224, 0.225),
+            hflip_prob = 0.5
     ):
         transforms_img = []
         
@@ -21,14 +22,13 @@ class GuiVisPresetTrain:
 
         transforms_all = []
         
-        # transforms.append(T.RandomHorizontalFlip(p=1))
+        transforms_all.append(T.RandomHorizontalFlip(p=hflip_prob))
 
         transforms_all.extend([
             T.ToDtype(torch.float, scale=True),
             T.Normalize(mean=mean, std=std),
+            T.ToPureTensor()
         ])
-
-        transforms_all.append(T.ToPureTensor())
         self.transforms_all = T.Compose(transforms_all)
 
     def __call__(self, img, img_mask, img_rect):
