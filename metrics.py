@@ -84,7 +84,10 @@ class SimpleBinaryMetrics(Metrics):
 
     def __init__(self, metrics: Dict[str, Metric] = None):
         if metrics is None:
-            super().__init__({ "AUC": BinaryAUROC() }, BinaryAUROC)
+            super().__init__({ 
+                "Acc": BinaryAccuracy(),
+                "AUC": BinaryAUROC() 
+            }, BinaryAUROC)
         else:
             super().__init__(metrics, BinaryAUROC)
 
