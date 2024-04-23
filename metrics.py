@@ -80,16 +80,13 @@ class Metrics:
         return '\t'.join(agg_metrics)
     
 
-class BinaryMetrics(Metrics):
+class SimpleBinaryMetrics(Metrics):
 
-    def __init__(self):
-        super().__init__({ 
-            "Acc": BinaryAccuracy(),
-            "Pre": BinaryPrecision(), 
-            "Rec": BinaryRecall(),
-            "F-1": BinaryF1Score(),
-            "AUC": BinaryAUROC() 
-        }, BinaryAUROC)
+    def __init__(self, metrics: Dict[str, Metric] = None):
+        if metrics is None:
+            super().__init__({ "AUC": BinaryAUROC() }, BinaryAUROC)
+        else:
+            super().__init__(metrics, BinaryAUROC)
 
     def compute(self, hypotheses, references) -> float:
         score = super().compute(hypotheses, references)
@@ -106,3 +103,15 @@ class BinaryMetrics(Metrics):
         print(f'* POS * Pre {TP / (TP + FP):.5f} Rec {TP / (TP + FN):.5f} F-1 {2 * TP / (2 * TP + FP + FN):.5f}')
         print(f'* NEG * Pre {TN / (TN + FN):.5f} Rec {TN / (TN + FP):.5f} F-1 {2 * TN / (2 * TN + FP + FN):.5f}\n')
         return score
+
+
+class BinaryMetrics(SimpleBinaryMetrics):
+
+    def __init__(self):
+        super().__init__({ 
+            "Acc": BinaryAccuracy(),
+            "Pre": BinaryPrecision(), 
+            "Rec": BinaryRecall(),
+            "F-1": BinaryF1Score(),
+            "AUC": BinaryAUROC() 
+        })

@@ -42,6 +42,7 @@ class Trainer:
 
     def save_checkpoint(self, epoch: int, epochs_since_improvement: int, score, is_best: bool):
         state = {
+            'seed': torch.initial_seed(),
             'epoch': epoch,
             'epochs_since_improvement': epochs_since_improvement,
             'score': score,
@@ -86,6 +87,8 @@ class Trainer:
 
         print(f"Loaded {md5.hexdigest()}")
         print(f"  from '{save_file}'")
+        if 'seed' in saved:
+            print(f"- seed      : {saved['seed']}")
         print(f"- epoch     : {saved['epoch']}")
         print(f"- epochs_since_improvement: {saved['epochs_since_improvement']}")
         print(f"- score     : {saved['score']}")
@@ -113,7 +116,7 @@ class Trainer:
 
             self.optimizer.zero_grad()
             # loss, logits, targets = self.collect_batch(samples)
-            logits = self.model(batch)
+            logits, predicts = self.model(batch)
             loss = self.criterion(logits, targets)
             loss.backward()
 
@@ -122,7 +125,7 @@ class Trainer:
 
             self.optimizer.step()
 
-            metrics.update(predicts=logits.squeeze(), targets=targets.squeeze(), loss=loss.item())
+            metrics.update(predicts=predicts.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
             if i % self.print_freq == 0:
                 print(f"Epoch [{epoch}][{i}/{len(data_loader)}]\t{metrics.format()}")
@@ -141,10 +144,10 @@ class Trainer:
                 batch = self.to_device(batch)
                 targets = batch["target"]
                 # loss, logits, targets = self.collect_batch(samples)
-                logits = self.model(batch)
+                logits, predicts = self.model(batch)
                 loss = self.criterion(logits, targets)
 
-                metrics.update(predicts=logits.squeeze(), targets=targets.squeeze(), loss=loss.item())
+                metrics.update(predicts=predicts.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
                 if i % self.print_freq == 0:
                     print(f'\nValidation [{i}/{len(data_loader)}]\t{metrics.format()}')
@@ -173,7 +176,7 @@ class Trainer:
                 batch = self.to_device(batch)
                 targets = batch["target"]
                 # _, logits, targets = self.collect_batch(samples)
-                logits = self.model(batch)
+                _, predicts = self.model(batch)
                
                 metrics.update(None, None)  # 
 
@@ -181,7 +184,7 @@ class Trainer:
                     print(f'Test [{i}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
 
                 references.extend(targets.squeeze())
-                hypotheses.extend(logits.squeeze())
+                hypotheses.extend(predicts.squeeze())
 
                 if proof_of_concept:
                     break
@@ -213,7 +216,7 @@ class Trainer:
             best_score = max(recent_score, best_score)
             if not is_best:
                 epochs_since_improvement += 1
-                print(f"\nEpochs since last improvement: {epochs_since_improvement} ({best_score})\n")
+                print(f"\nEpochs since last improvement: {epochs_since_improvement} ({best_score})\n")  # [OK]
             else:
                 epochs_since_improvement = 0
 
