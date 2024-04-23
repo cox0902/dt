@@ -5,6 +5,7 @@ import hashlib
 import torch
 from torch import nn
 from torch import optim
+from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn, update_bn
 from torch.utils.data import DataLoader
 
 from .metrics import Metrics
@@ -12,7 +13,8 @@ from .metrics import Metrics
 
 class Trainer:
 
-    def __init__(self, model: nn.Module, criterion: nn.Module, optimizer: optim.Optimizer):
+    def __init__(self, model: nn.Module, criterion: nn.Module, optimizer: optim.Optimizer,
+                 is_ema: bool = False):
         self.print_freq: int = 100
         
         self.epochs_early_stop: int = 10
@@ -24,6 +26,12 @@ class Trainer:
 
         if model is not None:
             self.model = model.to(self.device)
+
+        self.ema_model = None
+        if is_ema:
+            self.ema_model = AveragedModel(model, multi_avg_fn=get_ema_multi_avg_fn(0.999), 
+                                           use_buffers=True)
+
         if criterion is not None:
             self.criterion = criterion.to(self.device)
         self.optimizer = optimizer
@@ -40,7 +48,8 @@ class Trainer:
                 if param.grad is not None:
                     param.grad.data.clamp_(-grad_clip, grad_clip)
 
-    def save_checkpoint(self, epoch: int, epochs_since_improvement: int, score, is_best: bool):
+    def save_checkpoint(self, epoch: int, epochs_since_improvement: int, score, is_best: bool,
+                        save_checkpoint: bool = True):
         state = {
             'seed': torch.initial_seed(),
             'epoch': epoch,
@@ -50,9 +59,11 @@ class Trainer:
             'criterion': self.criterion,
             'optimizer': self.optimizer,
         }
+        if self.ema_model is not None:
+            state['ema_model'] = self.ema_model
         if is_best:
             torch.save(state, 'BEST.pth.tar')
-        else:
+        elif save_checkpoint:
             torch.save(state, 'checkpoint.pth.tar')
 
     @staticmethod
@@ -67,6 +78,7 @@ class Trainer:
         saved = torch.load(save_file, map_location=device)
 
         model: nn.Module = saved['model']
+        is_ema = 'ema_model' in saved
         criterion = saved['criterion'] if 'criterion' in saved else None
         optimizer = saved['optimizer']
 
@@ -89,11 +101,16 @@ class Trainer:
         print(f"  from '{save_file}'")
         if 'seed' in saved:
             print(f"- seed      : {saved['seed']}")
+        if is_ema:
+            print(f"- is_ema    : True")
         print(f"- epoch     : {saved['epoch']}")
         print(f"- epochs_since_improvement: {saved['epochs_since_improvement']}")
         print(f"- score     : {saved['score']}")
 
-        return Trainer(model=model, criterion=criterion, optimizer=optimizer)
+        trainer = Trainer(model=model, criterion=criterion, optimizer=optimizer)
+        if is_ema:
+            trainer.ema_model = saved['ema_model']
+        return trainer
     
     def to_device(self, data: Dict) -> Dict:
         for k, v in data.items():
@@ -124,6 +141,9 @@ class Trainer:
                 self.clip_gradient(self.grad_clip)
 
             self.optimizer.step()
+            
+            if self.ema_model is not None:
+                self.ema_model.update_parameters(self.model)
 
             metrics.update(predicts=predicts.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
@@ -134,7 +154,11 @@ class Trainer:
                 break
         
     def valid(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False) -> float:
-        self.model.eval()
+        model = self.model
+        if self.ema_model is not None:
+            model = self.ema_model
+
+        model.eval()
 
         references = []
         hypotheses = []
@@ -144,7 +168,7 @@ class Trainer:
                 batch = self.to_device(batch)
                 targets = batch["target"]
                 # loss, logits, targets = self.collect_batch(samples)
-                logits, predicts = self.model(batch)
+                logits, predicts = model(batch)
                 loss = self.criterion(logits, targets)
 
                 metrics.update(predicts=predicts.squeeze(), targets=targets.squeeze(), loss=loss.item())
@@ -166,7 +190,11 @@ class Trainer:
         return metrics.compute(hypotheses, references)
     
     def test(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False):
-        self.model.eval()
+        model = self.model
+        if self.ema_model is not None:
+            model = self.ema_model
+
+        model.eval()
 
         references = []
         hypotheses = []
@@ -176,7 +204,7 @@ class Trainer:
                 batch = self.to_device(batch)
                 targets = batch["target"]
                 # _, logits, targets = self.collect_batch(samples)
-                _, predicts = self.model(batch)
+                _, predicts = model(batch)
                
                 metrics.update(None, None)  # 
 
@@ -198,7 +226,7 @@ class Trainer:
         return hypotheses, references
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
-            proof_of_concept: bool = False):
+            save_checkpoint: bool = True, proof_of_concept: bool = False):
         epochs_since_improvement: int = 0
         best_score = 0
 
@@ -222,7 +250,7 @@ class Trainer:
 
             # save checkpoint
             self.save_checkpoint(epoch=epoch, epochs_since_improvement=epochs_since_improvement, 
-                                 score=recent_score, is_best=is_best)
+                                 score=recent_score, is_best=is_best, save_checkpoint=save_checkpoint)
             
             if proof_of_concept:
                 break

@@ -12,7 +12,9 @@ class GuiVisDataset(Dataset):
     def __init__(self, data_path: str, data_name: str, transform = None):
         self.h = h5py.File(data_path + data_name + ".hdf5", "r")
         self.images = self.h["images"]
+        self.ricoid = self.h["ricoid"]
         self.masks = self.h["masks"]
+        self.rects = self.h["rects"]
         self.labels = self.h["labels"]
         self.transform = transform
         self.mode = None
@@ -23,10 +25,13 @@ class GuiVisDataset(Dataset):
         if i >= len(self.labels):
             return self.__getoovitem()
         img_idx, _, label = self.labels[i]
-        img = torch.FloatTensor(self.images[img_idx] / 255.)
-        img_mask = torch.FloatTensor(self.masks[i] / 255.)
+        img = torch.from_numpy(self.images[img_idx])
+        img_mask = torch.from_numpy(self.masks[i] / 255.)
+        img_rect = torch.from_numpy(self.rects[i])
+        # img = torch.FloatTensor(self.images[img_idx] / 255.)
+        # img_mask = torch.FloatTensor(self.masks[i] / 255.)
         if self.transform is not None:
-            img = self.transform(img)
+            img, img_mask, _ = self.transform(img, img_mask, img_rect)
         img = torch.cat([img, img_mask], dim=0)
         label = torch.FloatTensor([label])
         return {
