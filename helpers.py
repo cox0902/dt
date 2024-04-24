@@ -7,14 +7,14 @@ from torchvision import tv_tensors
 from torchvision.transforms.v2 import functional as F
 
 
-def plot(imgs, row_title=None, **imshow_kwargs):
+def plot(imgs, titles=None, row_title=None, figshow_kwargs = {}, imshow_kwargs = {}):
     if not isinstance(imgs[0], list):
         # Make a 2d grid even if there's just 1 row
         imgs = [imgs]
 
     num_rows = len(imgs)
     num_cols = len(imgs[0])
-    _, axs = plt.subplots(nrows=num_rows, ncols=num_cols, squeeze=False)
+    _, axs = plt.subplots(nrows=num_rows, ncols=num_cols, squeeze=False, **figshow_kwargs)
     for row_idx, row in enumerate(imgs):
         for col_idx, img in enumerate(row):
             boxes = None
@@ -46,9 +46,11 @@ def plot(imgs, row_title=None, **imshow_kwargs):
             ax = axs[row_idx, col_idx]
             ax.imshow(img.permute(1, 2, 0).numpy(), **imshow_kwargs)
             ax.set(xticklabels=[], yticklabels=[], xticks=[], yticks=[])
+            if titles is not None:
+                ax.set_title(titles[row_idx][col_idx])
 
     if row_title is not None:
         for row_idx in range(num_rows):
             axs[row_idx, 0].set(ylabel=row_title[row_idx])
 
-    plt.tight_layout()
+    # plt.tight_layout()
