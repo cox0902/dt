@@ -41,11 +41,12 @@ class GuiVisDataset(Dataset):
     
     def __getoovitem(self):
         img_index = np.random.randint(len(self.images))
-        img = torch.FloatTensor(self.images[img_index] / 255.)
+        img = torch.from_numpy(self.images[img_index])
         
         if self.mode == "rnd":
             msk_index = np.random.choice(np.where(self.labels[:, 0] != img_index)[0])
             img_mask = torch.FloatTensor(self.masks[msk_index] / 255.)
+            img_rect = torch.FloatTensor(self.rects[msk_index])
         else:  # "neg"
             msk_indices_pos = np.where(self.labels[:, 0] != img_index)[0]
             img_masks_pos = self.masks[msk_indices_pos] / 255.
@@ -65,9 +66,10 @@ class GuiVisDataset(Dataset):
             msk_index_neg = msk_indices_neg[msk_index_neg]
 
             img_mask = torch.FloatTensor(self.masks[msk_index_neg] / 255.)
+            img_rect = torch.FloatTensor(self.rects[msk_index_neg])
         
         if self.transform is not None:
-            img = self.transform(img)
+            img, img_mask, _ = self.transform(img, img_mask, img_rect)
         img = torch.cat([img, img_mask], dim=0)
         label = torch.FloatTensor([0])
         return { 

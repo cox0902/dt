@@ -73,9 +73,9 @@ class Metrics:
             for i, metric in enumerate(self.metrics):
                 if i % 5 == 0:
                     agg_metrics.append("\n")
-                str_inline = f'{metric["name"]} {metric["meter"].val:.3f}'
+                str_inline = f'{metric["name"]} {metric["meter"].val:.5f}'
                 if show_average:
-                    str_inline += f' ({metric["meter"].avg:.3f})'
+                    str_inline += f' ({metric["meter"].avg:.5f})'
                 agg_metrics.append(str_inline)
         return '\t'.join(agg_metrics)
     
