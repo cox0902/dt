@@ -24,7 +24,7 @@ class GuiVisDataset(Dataset):
     def __getitem__(self, i: int):
         if i >= len(self.labels):
             return self.__getoovitem()
-        img_idx, _, label = self.labels[i]
+        img_idx, _, label, _ = self.labels[i]
         img = torch.from_numpy(self.images[img_idx])
         img_mask = torch.FloatTensor(self.masks[i] / 255.)
         img_rect = torch.FloatTensor(self.rects[i])
