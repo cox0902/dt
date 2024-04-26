@@ -2,6 +2,7 @@
 from typing import Dict
 
 import hashlib
+import numpy as np
 import torch
 from torch import nn
 from torch import optim
@@ -47,7 +48,11 @@ class Trainer:
         self.grad_clip: float = 5.
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(self.device)
+        print(f"Device: {self.device}")
+        
+        model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+        params = sum([np.prod(p.size()) for p in model_parameters])
+        print(f"Trainable parameters: {params}")
 
         if model is not None:
             self.model = model.to(self.device)
