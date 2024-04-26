@@ -6,6 +6,7 @@ import torch
 from torch import nn
 from torch import optim
 from torch.optim.swa_utils import AveragedModel
+import torch.utils
 from torch.utils.data import DataLoader
 
 from .metrics import Metrics
@@ -40,6 +41,7 @@ class Trainer:
                  is_ema: bool = False):
         self.print_freq: int = 100
         
+        self.warmup_epochs: int = 5
         self.epochs_early_stop: int = 10
         self.epochs_adjust_lr: int = 4
         self.grad_clip: float = 5.
@@ -148,7 +150,9 @@ class Trainer:
 
     def train(self, data_loader: DataLoader, metrics: Metrics, epoch: int, proof_of_concept: bool = False):
         self.model.train()
+        metrics.reset(len(data_loader))
 
+        print()
         for i, batch in enumerate(data_loader):
             batch = self.to_device(batch)
             targets = batch["target"]
@@ -166,6 +170,8 @@ class Trainer:
             
             if self.ema_model is not None:
                 self.ema_model.update_parameters(self.model)
+                if epoch < self.warmup_epochs:
+                    self.ema_model.n_averaged.fill_(0)
 
             metrics.update(predicts=predicts.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
@@ -174,17 +180,20 @@ class Trainer:
                 
             if proof_of_concept:
                 break
+
+        print(f"Epoch [{epoch}][{i}/{len(data_loader)}]\t{metrics.format()}")
         
     def valid(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False) -> float:
         model = self.model
         if self.ema_model is not None:
             model = self.ema_model
-
-        model.eval()
+        model.eval()        
+        metrics.reset(len(data_loader))
 
         references = []
         hypotheses = []
 
+        print()
         with torch.no_grad():
             for i, batch in enumerate(data_loader):
                 batch = self.to_device(batch)
@@ -196,7 +205,7 @@ class Trainer:
                 metrics.update(predicts=predicts.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
                 if i % self.print_freq == 0:
-                    print(f'\nValidation [{i}/{len(data_loader)}]\t{metrics.format()}')
+                    print(f'Validation [{i}/{len(data_loader)}]\t{metrics.format()}')
 
                 references.extend(targets.squeeze())
                 hypotheses.extend(logits.squeeze())
@@ -204,10 +213,13 @@ class Trainer:
                 if proof_of_concept:
                     break
 
+            print(f'Validation [{i}/{len(data_loader)}]\t{metrics.format()}')
+
             hypotheses = torch.Tensor(hypotheses)
             references = torch.Tensor(references)
+            metrics.reset()
             metrics.update(predicts=hypotheses, targets=references)
-            print(f'\n * {metrics.format(show_batch_time=False)}')
+            print(f'\n* {metrics.format(show_average=False, show_batch_time=False, show_loss=False)}')
 
         return metrics.compute(hypotheses, references)
     
@@ -215,12 +227,13 @@ class Trainer:
         model = self.model
         if self.ema_model is not None:
             model = self.ema_model
-
         model.eval()
+        metrics.reset(len(data_loader))
 
         references = []
         hypotheses = []
 
+        print()
         with torch.no_grad():
             for i, batch in enumerate(data_loader):
                 batch = self.to_device(batch)
@@ -239,8 +252,11 @@ class Trainer:
                 if proof_of_concept:
                     break
 
+            print(f'Test [{i}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
+            
             hypotheses = torch.Tensor(hypotheses)
             references = torch.Tensor(references)
+            metrics.reset()
             metrics.update(predicts=hypotheses, targets=references)
             print(f'\n* {metrics.format(show_average=False, show_batch_time=False, show_loss=False)}')
 
