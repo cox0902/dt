@@ -98,7 +98,7 @@ class Metrics:
             MB = 1024.0 * 1024.0
             ma = torch.cuda.max_memory_allocated()
             mr = torch.cuda.max_memory_reserved()
-            agg_metrics.append(f"USE {ma / MB:d} MB / RES {mr / MB:d} MB")
+            agg_metrics.append(f"USE {int(ma / MB)} MB / RES {int(mr / MB)} MB")
         if show_batch_time:
             bt_avg = self.batch_time.avg
             str_inline = f"{bt_avg:.2} s/b / ETA {_tf(self.batch_time.sum)}"
