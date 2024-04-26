@@ -217,7 +217,7 @@ class Trainer:
 
             hypotheses = torch.Tensor(hypotheses)
             references = torch.Tensor(references)
-            metrics.reset()
+            metrics.reset(len(data_loader))
             metrics.update(predicts=hypotheses, targets=references)
             print(f'\n* {metrics.format(show_average=False, show_batch_time=False, show_loss=False)}')
 
@@ -256,7 +256,7 @@ class Trainer:
             
             hypotheses = torch.Tensor(hypotheses)
             references = torch.Tensor(references)
-            metrics.reset()
+            metrics.reset(len(data_loader))
             metrics.update(predicts=hypotheses, targets=references)
             print(f'\n* {metrics.format(show_average=False, show_batch_time=False, show_loss=False)}')
 

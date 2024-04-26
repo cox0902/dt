@@ -43,11 +43,7 @@ def _tf(seconds) -> str:
     td = timedelta(seconds=seconds)
     mm, ss = divmod(td.seconds, 60)
     hh, mm = divmod(mm, 60)
-    s = f'{ss:02}'
-    if mm > 0:
-        s = f'{mm:02}:' + s
-    if hh > 0:
-        s = f'{hh}:' + s
+    s = f'{hh}:{mm:02}:{ss:02}'
     if td.days:
         def plural(n):
             return n, abs(n) != 1 and "s" or ""
@@ -98,10 +94,9 @@ class Metrics:
             MB = 1024.0 * 1024.0
             ma = torch.cuda.max_memory_allocated()
             mr = torch.cuda.max_memory_reserved()
-            agg_metrics.append(f"USE {int(ma / MB)} MB / RES {int(mr / MB)} MB")
+            agg_metrics.append(f"{int(ma / MB)} MB / {int(mr / MB)} MB")
         if show_batch_time:
-            bt_avg = self.batch_time.avg
-            str_inline = f"{bt_avg:.2} s/b / ETA {_tf(self.batch_time.sum)}"
+            str_inline = f"ETA {_tf(self.batch_time.sum)}"
             if self.batch_count > 0 and self.batch_count > self.batch_time.count:
                 str_inline += f" / FIN {_tf(self.batch_time.avg * (self.batch_count - self.batch_time.count))}"
             agg_metrics.append(str_inline)
