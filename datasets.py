@@ -9,11 +9,14 @@ from torch.utils.data import Dataset
 
 class GuiVisDataset(Dataset):
 
-    def __init__(self, data_path: str, data_name: str, transform = None):
+    def __init__(self, data_path: str, data_name: str, 
+                 mask_mode: Literal["binary", "gray"] = "binary", 
+                 transform = None):
         self.h = h5py.File(data_path + data_name + ".hdf5", "r")
         self.images = self.h["images"]
         self.ricoid = self.h["ricoid"]
         self.masks = self.h["masks"]
+        self.mask_mode = mask_mode
         self.rects = self.h["rects"]
         self.labels = self.h["labels"]
         self.transform = transform
@@ -27,7 +30,10 @@ class GuiVisDataset(Dataset):
         img_idx = self.labels[i, 0]
         label = self.labels[i, 2]
         img = torch.from_numpy(self.images[img_idx])
-        img_mask = torch.FloatTensor(self.masks[i] / 255.)
+        if self.mask_mode == "binary":
+            img_mask = torch.FloatTensor(self.masks[i] == 255)
+        else:
+            img_mask = torch.FloatTensor(self.masks[i] / 255.)
         img_rect = torch.FloatTensor(self.rects[i])
         # img = torch.FloatTensor(self.images[img_idx] / 255.)
         # img_mask = torch.FloatTensor(self.masks[i] / 255.)
