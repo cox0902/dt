@@ -24,6 +24,9 @@ class GuiVisDataset(Dataset):
         self.extras = 0
         self.k = 10
 
+    def summary(self):
+        print(f"Mask Grayscaled: {len(np.unique(self.masks[0])) != 2}")
+
     def __getitem__(self, i: int):
         if i >= len(self.labels):
             return self.__getoovitem()
@@ -93,7 +96,7 @@ class GuiVisDataset(Dataset):
         labels_weights = 1.0 / np.bincount(labels)
         return labels_weights[labels]
     
-    def resample(self, mode: Union[Literal["rnd"], Literal["neg"]], k: int = 10):
+    def resample(self, mode: Literal["rnd", "neg"], k: int = 10):
         self.mode = mode
         self.k = k
         bincount = np.bincount(self.labels[:, 2])
