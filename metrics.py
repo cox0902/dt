@@ -120,14 +120,14 @@ class Metrics:
 
 class SimpleBinaryMetrics(Metrics):
 
-    def __init__(self, metrics: Dict[str, Metric] = None):
+    def __init__(self, metrics: Dict[str, Metric] = None, scorer: Type[Metric] = BinaryAUROC):
         if metrics is None:
             super().__init__({ 
                 "Acc": BinaryAccuracy(),
                 "AUC": BinaryAUROC() 
-            }, BinaryAUROC)
+            }, scorer)
         else:
-            super().__init__(metrics, BinaryAUROC)
+            super().__init__(metrics, scorer)
 
     def compute(self, hypotheses, references) -> float:
         score = super().compute(hypotheses, references)
@@ -144,6 +144,12 @@ class SimpleBinaryMetrics(Metrics):
         print(f'* POS * Pre {TP / (TP + FP):.5f} Rec {TP / (TP + FN):.5f} F-1 {2 * TP / (2 * TP + FP + FN):.5f}')
         print(f'* NEG * Pre {TN / (TN + FN):.5f} Rec {TN / (TN + FP):.5f} F-1 {2 * TN / (2 * TN + FP + FN):.5f}')
         return score
+
+
+class SimpleBinaryMetricsAcc(SimpleBinaryMetrics):
+
+    def __init__(self):
+        super().__init__(scorer=BinaryAccuracy)
 
 
 class BinaryMetrics(SimpleBinaryMetrics):
