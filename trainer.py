@@ -181,12 +181,12 @@ class Trainer:
             metrics.update(predicts=predicts.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
             if i % self.print_freq == 0:
-                print(f"Epoch [{epoch}][{i}/{len(data_loader)}]\t{metrics.format()}")
+                print(f"Epoch [{epoch}][{i + 1}/{len(data_loader)}]\t{metrics.format()}")
                 
             if proof_of_concept:
                 break
 
-        print(f"Epoch [{epoch}][{i}/{len(data_loader)}]\t{metrics.format()}")
+        print(f"Epoch [{epoch}][{i + 1}/{len(data_loader)}]\t{metrics.format()}")
         
     def valid(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False) -> float:
         model = self.model
@@ -210,7 +210,7 @@ class Trainer:
                 metrics.update(predicts=predicts.squeeze(), targets=targets.squeeze(), loss=loss.item())
 
                 if i % self.print_freq == 0:
-                    print(f'Validation [{i}/{len(data_loader)}]\t{metrics.format()}')
+                    print(f'Validation [{i + 1}/{len(data_loader)}]\t{metrics.format()}')
 
                 references.extend(targets.squeeze())
                 hypotheses.extend(logits.squeeze())
@@ -218,7 +218,7 @@ class Trainer:
                 if proof_of_concept:
                     break
 
-            print(f'Validation [{i}/{len(data_loader)}]\t{metrics.format()}')
+            print(f'Validation [{i + 1}/{len(data_loader)}]\t{metrics.format()}')
 
             hypotheses = torch.Tensor(hypotheses)
             references = torch.Tensor(references)
@@ -249,7 +249,7 @@ class Trainer:
                 metrics.update(None, None)  # 
 
                 if i % self.print_freq == 0:
-                    print(f'Test [{i}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
+                    print(f'Test [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
 
                 references.extend(targets.squeeze())
                 hypotheses.extend(predicts.squeeze())
@@ -257,7 +257,7 @@ class Trainer:
                 if proof_of_concept:
                     break
 
-            print(f'Test [{i}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
+            print(f'Test [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
             
             hypotheses = torch.Tensor(hypotheses)
             references = torch.Tensor(references)

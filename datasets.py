@@ -26,6 +26,7 @@ class GuiVisDataset(Dataset):
 
     def summary(self):
         print(f"Mask Grayscaled: {len(np.unique(self.masks[0])) != 2}")
+        print(f"Binary Weights : {1. / np.bincount(self.labels[:, 2])}")
 
     def __getitem__(self, i: int):
         if i >= len(self.labels):
