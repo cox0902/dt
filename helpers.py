@@ -41,7 +41,7 @@ def plot(imgs, titles=None, row_title=None, figshow_kwargs = {}, imshow_kwargs =
             if boxes is not None:
                 img = draw_bounding_boxes(img, boxes, colors="yellow", width=3)
             if masks is not None:
-                img = draw_segmentation_masks(img, masks.to(torch.bool), colors=["green"] * masks.shape[0], alpha=.65)
+                img = draw_segmentation_masks(img, masks.to(torch.bool), colors=[(255, 0, 255)] * masks.shape[0], alpha=.65)
 
             ax = axs[row_idx, col_idx]
             ax.imshow(img.permute(1, 2, 0).numpy(), **imshow_kwargs)
