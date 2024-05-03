@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 class GuiVisDataset(Dataset):
 
     def __init__(self, data_path: str, data_name: str, transform = None, 
-                 label_smooth: bool = True):
+                 label_smooth: bool = False):
         self.h = h5py.File(data_path + data_name + ".hdf5", "r")
         self.images = self.h["images"]
         self.ricoid = self.h["ricoid"]
@@ -85,9 +85,9 @@ class GuiVisDataset(Dataset):
 
         if self.label_smooth:
             mask_i = np.logical_and(img_masks_pos, img_mask)
-            mask_i = np.sum(mask_i, axis=(1, 2, 3))
+            mask_i = np.sum(mask_i.reshape(img_masks_pos.shape[0], -1), axis=1)
             mask_u = np.logical_or(img_masks_pos, img_mask)
-            mask_u = np.sum(mask_u, axis=(1, 2, 3))
+            mask_u = np.sum(mask_u.reshape(img_masks_pos.shape[0], -1), axis=1)
             mask_iou = mask_i / mask_u
             label = torch.FloatTensor([np.max(mask_iou)])
         else:
