@@ -1,11 +1,12 @@
 
-from typing import Dict
+from typing import Dict, Optional
 
 import hashlib
 import numpy as np
 import torch
 from torch import nn
 from torch import optim
+from torch.cuda.amp import autocast, GradScaler
 from torch.optim.swa_utils import AveragedModel
 import torch.utils
 from torch.utils.data import DataLoader
@@ -39,13 +40,18 @@ class ExponentialMovingAverage(AveragedModel):
 class Trainer:
 
     def __init__(self, model: nn.Module, criterion: nn.Module, optimizer: optim.Optimizer,
-                 is_ema: bool = False):
+                 is_ema: bool = False, use_amp: bool = False):
         self.print_freq: int = 100
         
         self.warmup_epochs: int = 5
         self.epochs_early_stop: int = 10
         self.epochs_adjust_lr: int = 4
-        self.grad_clip: float = 5.
+        self.grad_clip: Optional[float] = None  # 5.
+        self.grad_clip_fn = nn.utils.clip_grad.clip_grad_norm_
+
+        self.epoch: int = 0
+        self.epochs_since_improvement: int = 0
+        self.best_score: float = 0.
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Device: {self.device}")
@@ -61,6 +67,8 @@ class Trainer:
         if is_ema:
             self.ema_model = ExponentialMovingAverage(self.model)
 
+        self.scaler = torch.cuda.amp.GradScaler() if use_amp else None
+
         if criterion is not None:
             self.criterion = criterion.to(self.device)
         self.optimizer = optimizer
@@ -71,11 +79,11 @@ class Trainer:
             param_group["lr"] = param_group["lr"] * shrink_factor
         print(f"- The new learning rate is {self.optimizer.param_groups[0]['lr']}\n")
 
-    def clip_gradient(self, grad_clip: float):
-        for group in self.optimizer.param_groups:
-            for param in group["params"]:
-                if param.grad is not None:
-                    param.grad.data.clamp_(-grad_clip, grad_clip)
+    # def clip_gradient(self, grad_clip: float):
+    #     for group in self.optimizer.param_groups:
+    #         for param in group["params"]:
+    #             if param.grad is not None:
+    #                 param.grad.data.clamp_(-grad_clip, grad_clip)
 
     def save_checkpoint(self, epoch: int, epochs_since_improvement: int, score, is_best: bool,
                         save_checkpoint: bool = True):
@@ -87,6 +95,7 @@ class Trainer:
             'model': self.model,
             'criterion': self.criterion,
             'optimizer': self.optimizer,
+            'scaler': self.scaler
         }
         if self.ema_model is not None:
             state['ema_model'] = self.ema_model
@@ -110,7 +119,8 @@ class Trainer:
         is_ema = 'ema_model' in saved
         criterion = saved['criterion'] if 'criterion' in saved else None
         optimizer = saved['optimizer']
-
+        scaler = saved['scaler'] if 'scaler' in saved else None
+ 
         md5 = hashlib.md5()
         for arg in model.parameters():
             x = arg.data
@@ -132,11 +142,17 @@ class Trainer:
             print(f"- seed      : {saved['seed']}")
         if is_ema:
             print(f"- is_ema    : True")
+        if scaler is not None:
+            print(f"- is_amp    : True")
         print(f"- epoch     : {saved['epoch']}")
         print(f"- epochs_since_improvement: {saved['epochs_since_improvement']}")
         print(f"- score     : {saved['score']}")
 
         trainer = Trainer(model=model, criterion=criterion, optimizer=optimizer)
+        trainer.epoch = saved["epoch"]
+        trainer.epochs_since_improvement = saved["epochs_since_improvement"]
+        trainer.best_score = saved["score"]
+        trainer.scaler = scaler
         if is_ema:
             trainer.ema_model = saved['ema_model']
         return trainer
@@ -162,16 +178,27 @@ class Trainer:
             batch = self.to_device(batch)
             targets = batch["target"]
 
+            with autocast(enabled=self.scaler is not None):
+                logits, predicts = self.model(batch)
+                loss = self.criterion(logits, targets)
+
             self.optimizer.zero_grad()
-            # loss, logits, targets = self.collect_batch(samples)
-            logits, predicts = self.model(batch)
-            loss = self.criterion(logits, targets)
-            loss.backward()
+            if self.scaler is not None:
+                self.scaler.scale(loss).backward()
 
-            if self.grad_clip is not None:
-                self.clip_gradient(self.grad_clip)
+                if self.grad_clip is not None:
+                    self.scaler.unscale_(self.optimizer)
+                    self.grad_clip_fn(self.model.parameters(), self.grad_clip)
+                    
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                loss.backward()
 
-            self.optimizer.step()
+                if self.grad_clip is not None:
+                    self.grad_clip_fn(self.model.parameters(), self.grad_clip)
+
+                self.optimizer.step()
             
             if self.ema_model is not None:
                 self.ema_model.update_parameters(self.model)
@@ -270,10 +297,10 @@ class Trainer:
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
             save_checkpoint: bool = True, proof_of_concept: bool = False):
-        epochs_since_improvement: int = 0
-        best_score = 0
+        epochs_since_improvement: int = self.epochs_since_improvement
+        best_score: float = self.best_score
 
-        for epoch in range(epochs):
+        for epoch in range(self.epoch, epochs):
             if epochs_since_improvement == self.epochs_early_stop:
                 break
             if epochs_since_improvement > 0 and epochs_since_improvement % self.epochs_adjust_lr == 0:
@@ -293,7 +320,8 @@ class Trainer:
 
             # save checkpoint
             self.save_checkpoint(epoch=epoch, epochs_since_improvement=epochs_since_improvement, 
-                                 score=recent_score, is_best=is_best, save_checkpoint=save_checkpoint)
+                                 score=recent_score, is_best=is_best, 
+                                 save_checkpoint=save_checkpoint)
             
             if proof_of_concept:
                 break

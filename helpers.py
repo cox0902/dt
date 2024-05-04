@@ -1,5 +1,6 @@
 # from https://github.com/pytorch/vision/blob/main/gallery/transforms/helpers.py
 
+import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from torchvision.utils import draw_bounding_boxes, draw_segmentation_masks
@@ -54,3 +55,33 @@ def plot(imgs, titles=None, row_title=None, figshow_kwargs = {}, imshow_kwargs =
             axs[row_idx, 0].set(ylabel=row_title[row_idx])
 
     # plt.tight_layout()
+
+
+def oneplot(img_data):
+    if len(img_data.shape) == 3:
+        plt.imshow(img_data)
+    else:
+        plt.imshow(img_data, cmap='gray', vmin=0, vmax=1)
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+
+def rowplots(row_data):
+    cnt = len(row_data)
+    if cnt == 1:
+        oneplot(row_data[0])
+    else:
+        _, axes = plt.subplots(1, cnt, figsize=(cnt * 4, 4))
+        for ne, ax in zip(row_data, axes):
+            if len(ne.shape) == 3:
+                ax.imshow(ne)
+            else:
+                c = np.unique(ne)
+                if len(c) == 2:
+                    ax.imshow(ne, cmap='gray', vmin=0, vmax=1)
+                else:
+                    ax.imshow(ne, cmap='gray', vmin=0)
+            ax.set_xticks([])
+            ax.set_yticks([])
+        plt.show()
