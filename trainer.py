@@ -149,7 +149,7 @@ class Trainer:
         print(f"- score     : {saved['score']}")
 
         trainer = Trainer(model=model, criterion=criterion, optimizer=optimizer)
-        trainer.epoch = saved["epoch"]
+        trainer.epoch = saved["epoch"] + 1
         trainer.epochs_since_improvement = saved["epochs_since_improvement"]
         trainer.best_score = saved["score"]
         trainer.scaler = scaler
@@ -189,7 +189,7 @@ class Trainer:
                 if self.grad_clip is not None:
                     self.scaler.unscale_(self.optimizer)
                     self.grad_clip_fn(self.model.parameters(), self.grad_clip)
-                    
+
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
