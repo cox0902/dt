@@ -11,7 +11,6 @@ from torch.cuda.amp import autocast, GradScaler
 from torch.optim.swa_utils import AveragedModel
 import torch.utils
 from torch.utils.data import DataLoader
-from . import seed_everything
 from .metrics import Metrics
 
 
@@ -40,7 +39,7 @@ class ExponentialMovingAverage(AveragedModel):
 
 class Trainer:
 
-    def __init__(self, model: nn.Module, criterion: nn.Module, optimizer: optim.Optimizer, generator: torch.Generator = None,
+    def __init__(self, model: nn.Module, criterion: nn.Module, optimizer: optim.Optimizer, generator: torch.Generator,
                  is_ema: bool = False, use_amp: bool = False):
         self.print_freq: int = 100
         
@@ -71,7 +70,7 @@ class Trainer:
         if is_ema:
             self.ema_model = ExponentialMovingAverage(self.model)
 
-        self.scaler = torch.cuda.amp.GradScaler() if use_amp else None
+        self.scaler = GradScaler() if use_amp else None
 
         if criterion is not None:
             self.criterion = criterion.to(self.device)
@@ -153,7 +152,7 @@ class Trainer:
         print(f"- epochs_since_improvement: {saved['epochs_since_improvement']}")
         print(f"- score     : {saved['score']}")
 
-        trainer = Trainer(model=model, criterion=criterion, optimizer=optimizer)
+        trainer = Trainer(model=model, criterion=criterion, optimizer=optimizer, generator=None)
         trainer.epoch = saved["epoch"] + 1
         trainer.epochs_since_improvement = saved["epochs_since_improvement"]
         trainer.best_score = saved["score"]
@@ -229,7 +228,6 @@ class Trainer:
             for i, batch in enumerate(data_loader):
                 batch = self.to_device(batch)
                 targets = batch["target"]
-                # loss, logits, targets = self.collect_batch(samples)
                 logits, predicts = model(batch)
                 loss = self.criterion(logits, targets)
 
@@ -269,7 +267,6 @@ class Trainer:
             for i, batch in enumerate(data_loader):
                 batch = self.to_device(batch)
                 targets = batch["target"]
-                # _, logits, targets = self.collect_batch(samples)
                 _, predicts = model(batch)
                
                 metrics.update(None, None)  # 
@@ -296,6 +293,8 @@ class Trainer:
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
             save_checkpoint: bool = True, proof_of_concept: bool = False):
+        assert self.generator is not None
+
         epochs_since_improvement: int = self.epochs_since_improvement
         best_score: float = self.best_score
 
