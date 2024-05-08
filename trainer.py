@@ -1,6 +1,7 @@
 
 from typing import Dict, Optional
 
+import random
 import hashlib
 import numpy as np
 import torch
@@ -10,7 +11,7 @@ from torch.cuda.amp import autocast, GradScaler
 from torch.optim.swa_utils import AveragedModel
 import torch.utils
 from torch.utils.data import DataLoader
-
+from . import seed_everything
 from .metrics import Metrics
 
 
@@ -39,7 +40,7 @@ class ExponentialMovingAverage(AveragedModel):
 
 class Trainer:
 
-    def __init__(self, model: nn.Module, criterion: nn.Module, optimizer: optim.Optimizer,
+    def __init__(self, model: nn.Module, criterion: nn.Module, optimizer: optim.Optimizer, generator: torch.Generator = None,
                  is_ema: bool = False, use_amp: bool = False):
         self.print_freq: int = 100
         
@@ -52,6 +53,9 @@ class Trainer:
         self.epoch: int = 0
         self.epochs_since_improvement: int = 0
         self.best_score: float = 0.
+
+        self.generator = generator
+        self.state = None
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Device: {self.device}")
@@ -79,12 +83,6 @@ class Trainer:
             param_group["lr"] = param_group["lr"] * shrink_factor
         print(f"- The new learning rate is {self.optimizer.param_groups[0]['lr']}\n")
 
-    # def clip_gradient(self, grad_clip: float):
-    #     for group in self.optimizer.param_groups:
-    #         for param in group["params"]:
-    #             if param.grad is not None:
-    #                 param.grad.data.clamp_(-grad_clip, grad_clip)
-
     def save_checkpoint(self, epoch: int, epochs_since_improvement: int, score, is_best: bool,
                         save_checkpoint: bool = True):
         state = {
@@ -95,7 +93,14 @@ class Trainer:
             'model': self.model,
             'criterion': self.criterion,
             'optimizer': self.optimizer,
-            'scaler': self.scaler
+            'scaler': self.scaler,
+            'state': {
+                'generator': self.generator.get_state(),
+                'cpu': torch.get_rng_state(),
+                'gpu': torch.cuda.get_rng_state(),
+                'numpy': np.random.get_state(),
+                'python': random.getstate()
+            }
         }
         if self.ema_model is not None:
             state['ema_model'] = self.ema_model
@@ -153,6 +158,7 @@ class Trainer:
         trainer.epochs_since_improvement = saved["epochs_since_improvement"]
         trainer.best_score = saved["score"]
         trainer.scaler = scaler
+        trainer.state = saved['state'] if 'state' in saved else None
         if is_ema:
             trainer.ema_model = saved['ema_model']
         return trainer
@@ -161,13 +167,6 @@ class Trainer:
         for k, v in data.items():
             data[k] = v.to(self.device)
         return data
-    
-    # def collect_batch(self, samples):
-    #     sources, targets = samples
-    #     predicts = self.model(sources)
-    #     logits = torch.sigmoid(predicts) if self.use_logits else predicts
-    #     loss = self.criterion(predicts, targets)
-    #     return loss, logits, targets
 
     def train(self, data_loader: DataLoader, metrics: Metrics, epoch: int, proof_of_concept: bool = False):
         self.model.train()
