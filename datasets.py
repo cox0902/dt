@@ -82,6 +82,7 @@ class GuiVisDataset(Dataset):
 
             p = 1 - img_masks_weights
             p = p / np.sum(p)
+            assert not np.isnan(p), img_masks_weights
             msk_index_neg = np.random.choice(len(img_masks_weights), p=p)
             msk_index_neg = msk_indices_neg[msk_index_neg]
 
