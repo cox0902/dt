@@ -167,6 +167,11 @@ class Trainer:
             data[k] = v.to(self.device)
         return data
 
+    def get_model(self) -> nn.Module:
+        if self.ema_model is not None:
+            return self.ema_model
+        return self.model
+
     def train(self, data_loader: DataLoader, metrics: Metrics, epoch: int, proof_of_concept: bool = False):
         self.model.train()
         metrics.reset(len(data_loader))
@@ -214,9 +219,7 @@ class Trainer:
         print(f"Epoch [{epoch}][{i + 1}/{len(data_loader)}]\t{metrics.format()}")
         
     def valid(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False) -> float:
-        model = self.model
-        if self.ema_model is not None:
-            model = self.ema_model
+        model = self.get_model()
         model.eval()        
         metrics.reset(len(data_loader))
 
@@ -253,9 +256,7 @@ class Trainer:
         return metrics.compute(hypotheses, references)
     
     def test(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False):
-        model = self.model
-        if self.ema_model is not None:
-            model = self.ema_model
+        model = self.get_model()
         model.eval()
         metrics.reset(len(data_loader))
 

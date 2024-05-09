@@ -54,11 +54,15 @@ class GuiVisDataset(Dataset):
         img = torch.from_numpy(self.images[img_index])
         # print("sampled : ", self.labels[np.random.choice(np.where(self.labels[:, 0] == img_index)[0])])
 
-        msk_indices_pos = np.where(self.labels[:, 0] == img_index)[0]
+        msk_indices_pos = np.where(np.logical_and(
+            self.labels[:, 0] == img_index, self.labels[:, 4] == 1
+        ))[0]
         img_masks_pos = self.masks[msk_indices_pos] / 255.
 
         if self.mode == "rnd":
-            msk_index = np.random.choice(np.where(self.labels[:, 0] != img_index)[0])
+            msk_index = np.random.choice(np.where(np.logical_and(
+                self.labels[:, 0] != img_index, self.labels[:, 4] == 1
+            ))[0])
             # print("randomed: ", self.labels[msk_index])
             img_mask = torch.FloatTensor(self.masks[msk_index] / 255.)
             img_rect = torch.FloatTensor(self.rects[msk_index])
@@ -66,8 +70,9 @@ class GuiVisDataset(Dataset):
             img_mask_pos = np.sum(img_masks_pos, axis=0) / len(msk_indices_pos)
 
             msk_indices_neg = np.random.choice(
-                np.where(self.labels[:, 0] != img_index)[0], 
-                (self.k, ), replace=False)
+                np.where(np.logical_and(
+                    self.labels[:, 0] != img_index, self.labels[:, 4] == 1
+                ))[0], (self.k, ), replace=False)
             msk_indices_neg = np.sort(msk_indices_neg)
             img_masks_neg = self.masks[msk_indices_neg] / 255.
 
