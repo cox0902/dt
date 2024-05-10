@@ -5,12 +5,12 @@ from torch import nn
 from torch import optim
 from torch.utils.data import DataLoader, WeightedRandomSampler
 
-from .utils import seed_everything
-from .trainer import Trainer
-from .metrics import SimpleBinaryMetrics
-from .datasets import GuiVisDataset
-from .transforms import GuiVisPresetTrain, GuiVisPresetEval
-from .models import VisModel
+from utils import seed_everything
+from trainer import Trainer
+from metrics import SimpleBinaryMetrics
+from datasets import GuiVisDataset
+from transforms import GuiVisPresetTrain, GuiVisPresetEval
+from models import VisModel
 
 
 def get_args_parser() -> argparse.ArgumentParser:
