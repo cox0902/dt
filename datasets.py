@@ -1,4 +1,4 @@
-from typing import Union, Literal
+from typing import *
 
 import h5py
 import numpy as np
@@ -9,9 +9,9 @@ from torch.utils.data import Dataset
 
 class GuiVisDataset(Dataset):
 
-    def __init__(self, data_path: str, data_name: str, transform = None, 
+    def __init__(self, data_path: str, transform = None, 
                  label_smooth: bool = False):
-        self.h = h5py.File(data_path + data_name + ".hdf5", "r")
+        self.h = h5py.File(data_path + ".hdf5", "r")
         self.images = self.h["images"]
         self.ricoid = self.h["ricoid"]
         self.masks = self.h["masks"]
@@ -28,7 +28,7 @@ class GuiVisDataset(Dataset):
         print(f"Dataset Size: {len(self)}")
         print(f" Labels Size: {np.bincount(self.labels[:, 2])}")
 
-    def __getitem__(self, i: int):
+    def __getitem__(self, i: int) -> Dict:
         if i >= len(self.labels) or -self.extras <= i < 0:
             return self.__getoovitem()
         img_idx = self.labels[i, 0]
@@ -148,3 +148,34 @@ class GuiVisDataset(Dataset):
         bincount = np.bincount(self.labels[:, 2])
         self.extras = bincount[1] - bincount[0]
         assert self.extras > 0
+
+
+class GuiCodeDataset(Dataset):
+
+    def __init__(self, data_path: str):
+        self.h = h5py.File(data_path + ".hdf5", "r")
+        self.max_len = self.h.attrs["max_len"]
+        self.ids = self.h["ids"]
+        self.eqs = self.h["eqs"]
+        self.lbs = self.h["lbs"]
+        self.ivs = self.h["ivs"]
+        self.les = self.h["les"]
+
+    def __len__(self) -> int:
+        return len(self.ids)
+    
+    def __getitem__(self, index: int) -> Dict:
+        code_len = self.les[index]
+        code_idx = np.where(self.ids[index, :code_len] == self.eqs[index, :code_len])[0]
+
+        code = np.zeros((self.max_len, ), dtype=np.int32)
+        code[:len(code_idx)] = self.ivs[index][code_idx]
+        
+        target = np.zeros((self.max_len, ), dtype=np.int32)
+        target[:len(code_idx)] = self.lbs[index][code_idx] 
+        
+        return {
+            "code": code,
+            "code_len": len(code_idx),
+            "target": target
+        }
