@@ -12,6 +12,7 @@ from torch.optim.swa_utils import AveragedModel
 import torch.utils
 from torch.utils.data import DataLoader
 from .metrics import Metrics
+from .utils import get_rng_state
 
 
 class ExponentialMovingAverage(AveragedModel):
@@ -61,7 +62,7 @@ class Trainer:
         
         model_parameters = filter(lambda p: p.requires_grad, model.parameters())
         params = sum([np.prod(p.size()) for p in model_parameters])
-        print(f"Trainable parameters: {params}")
+        print(f"Trainable parameters: {params:,}")
 
         if model is not None:
             self.model = model.to(self.device)
@@ -93,13 +94,7 @@ class Trainer:
             'criterion': self.criterion,
             'optimizer': self.optimizer,
             'scaler': self.scaler,
-            'state': {
-                'generator': self.generator.get_state(),
-                'cpu': torch.get_rng_state(),
-                'gpu': torch.cuda.get_rng_state(),
-                'numpy': np.random.get_state(),
-                'python': random.getstate()
-            }
+            'state': get_rng_state(self.generator)
         }
         if self.ema_model is not None:
             state['ema_model'] = self.ema_model
@@ -179,10 +174,10 @@ class Trainer:
         print()
         for i, batch in enumerate(data_loader):
             batch = self.to_device(batch)
-            targets = batch["target"]
+            # targets = batch["target"]
 
             with autocast(enabled=self.scaler is not None):
-                logits, predicts = self.model(batch)
+                logits, predicts, targets = self.model(batch)
                 loss = self.criterion(logits, targets)
 
             self.optimizer.zero_grad()
@@ -230,8 +225,8 @@ class Trainer:
         with torch.no_grad():
             for i, batch in enumerate(data_loader):
                 batch = self.to_device(batch)
-                targets = batch["target"]
-                logits, predicts = model(batch)
+                # targets = batch["target"]
+                logits, predicts, targets = model(batch)
                 loss = self.criterion(logits, targets)
 
                 metrics.update(predicts=predicts.squeeze(), targets=targets.squeeze(), loss=loss.item())
@@ -267,8 +262,8 @@ class Trainer:
         with torch.no_grad():
             for i, batch in enumerate(data_loader):
                 batch = self.to_device(batch)
-                targets = batch["target"]
-                _, predicts = model(batch)
+                # targets = batch["target"]
+                _, predicts, targets = model(batch)
                
                 metrics.update(None, None)  # 
 

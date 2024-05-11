@@ -13,7 +13,7 @@ class GuiVisDataset(Dataset):
                  label_smooth: bool = False):
         self.h = h5py.File(data_path + ".hdf5", "r")
         self.images = self.h["images"]
-        self.ricoid = self.h["ricoid"]
+        # self.ricoid = self.h["ricoid"]
         self.masks = self.h["masks"]
         self.rects = self.h["rects"]
         self.labels = self.h["labels"]
@@ -150,23 +150,54 @@ class GuiVisDataset(Dataset):
         assert self.extras > 0
 
 
-class GuiCodeDataset(Dataset):
+class GuiVisCodeDataset(Dataset):
 
-    def __init__(self, data_path: str):
-        self.h = h5py.File(data_path + ".hdf5", "r")
-        self.max_len = self.h.attrs["max_len"]
-        self.ids = self.h["ids"]
-        self.eqs = self.h["eqs"]
-        self.lbs = self.h["lbs"]
-        self.ivs = self.h["ivs"]
-        self.les = self.h["les"]
+    def __init__(self, vis_data_path: str, code_data_path: str, transform = None):
+        self.hv = h5py.File(vis_data_path + ".hdf5", "r")
+        self.images = self.hv["images"]
+        self.masks = self.hv["masks"]
+        self.transform = transform
+        self.hc = h5py.File(code_data_path + ".hdf5", "r")
+        self.max_len = self.hc.attrs["max_len"]
+        self.ids = self.hc["ids"]
+        self.iis = self.hc["iis"]
+        self.eqs = self.hc["eqs"]
+        self.lbs = self.hc["lbs"]
+        self.ivs = self.hc["ivs"]
+        self.les = self.hc["les"]
 
     def __len__(self) -> int:
         return len(self.ids)
     
     def __getitem__(self, index: int) -> Dict:
+        img = torch.from_numpy(self.images[index])
+        if self.transform is not None:
+            img, _, _ = self.transform(img, None, None)
+
         code_len = self.les[index]
         code_idx = np.where(self.ids[index, :code_len] == self.eqs[index, :code_len])[0]
+
+        # print(len(code_idx))
+
+        # iis, iis_invert = np.unique(self.iis[index][code_idx], return_inverse=True)
+        # print(len(iis))
+
+        # masks = torch.FloatTensor(self.masks[iis] / 255.)
+        # print(masks.shape)
+
+        # imgs = img.repeat(len(iis), 1, 1, 1)
+        # print(imgs.shape)
+
+        # imgs = torch.cat([imgs, masks], dim=1)
+        # print(imgs.shape)
+
+        # print(iis)
+        # print(iis_invert)
+        # print(masks.shape)
+
+        iis = self.iis[index][code_idx]
+        masks = np.zeros((self.max_len, 1, 256, 256), dtype=np.float32)
+        masks[:len(code_idx)] = self.masks[:][iis] / 255.
 
         code = np.zeros((self.max_len, ), dtype=np.int32)
         code[:len(code_idx)] = self.ivs[index][code_idx]
@@ -175,7 +206,9 @@ class GuiCodeDataset(Dataset):
         target[:len(code_idx)] = self.lbs[index][code_idx] 
         
         return {
+            "image": img,
+            "masks": masks,
             "code": code,
             "code_len": len(code_idx),
-            "target": target
+            "target": torch.FloatTensor(target)
         }

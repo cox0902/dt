@@ -23,19 +23,35 @@ def seed_everything(seed, state: Optional[Dict[str, Any]] = None) -> torch.Gener
     g = torch.Generator()
     g.manual_seed(seed)
     
+    seed_worker = set_rng_state(g, state)
+    return g, seed_worker
+
+
+def get_rng_state(generator: torch.Generator) -> Dict:
+    return {
+        'generator': generator.get_state(),
+        'cpu': torch.get_rng_state(),
+        'gpu': torch.cuda.get_rng_state() if torch.cuda.is_available() else None,
+        'numpy': np.random.get_state(),
+        'python': random.getstate()
+    }
+
+
+def set_rng_state(generator: torch.Generator, state: Optional[Dict] = None) -> Callable:
     if state is not None:
-        g.set_state(state["generator"])
+        generator.set_state(state["generator"])
         random.setstate(state["python"])
         np.random.set_state(state["numpy"])
         torch.set_rng_state(state["cpu"])
-        torch.cuda.set_rng_state(state["gpu"])
+        if state["gpu"]:
+            torch.cuda.set_rng_state(state["gpu"])
 
     def seed_worker(worker_id):
-        worker_seed = torch.initial_seed() % 2 ** 32
+        worker_seed = (torch.initial_seed() + worker_id) % 2 ** 32
         random.seed(worker_seed) 
         np.random.seed(worker_seed)
         if state is not None:
             random.setstate(state["python"])
             np.random.set_state(state["numpy"])
 
-    return g, seed_worker
+    return seed_worker
