@@ -45,5 +45,5 @@ class VisModel(nn.Module):
             fextractor = nn.Sequential(*list(self.resnet.children())[:-1])
             classifier = self.resnet.fc
             features = fextractor(batch["image"])
-            predicts = torch.sigmoid(classifier(features))
+            predicts = torch.sigmoid(classifier(features.squeeze()))
         return features, predicts
