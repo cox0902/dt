@@ -42,8 +42,7 @@ class VisModel(nn.Module):
 
     def predict(self, batch):
         with torch.no_grad():
-            children = self.resnet.children()[:-1]
-            fextractor = nn.Sequential(*children)
+            fextractor = nn.Sequential(*list(self.resnet.children())[:-1])
             classifier = self.resnet.fc
             features = fextractor(batch["image"])
             predicts = torch.sigmoid(classifier(features))
