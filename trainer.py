@@ -11,7 +11,7 @@ from torch.cuda.amp import autocast, GradScaler
 from torch.optim.swa_utils import AveragedModel
 import torch.utils
 from torch.utils.data import DataLoader
-from .metrics import Metrics
+from .metrics import Metrics, EmptyMetrics
 from .utils import get_rng_state
 
 
@@ -319,3 +319,33 @@ class Trainer:
             
             if proof_of_concept:
                 break
+
+    def predict(self, data_loader: DataLoader, proof_of_concept: bool = False):
+        model = self.get_model()
+        model.eval()
+
+        metrics = EmptyMetrics()
+        metrics.reset(len(data_loader))
+
+        features_all = []
+        predicts_all = []
+
+        for i, batch in enumerate(data_loader):
+            batch = self.to_device(batch)
+
+            features, predicts = self.model.predict(batch)
+            features_all.extend(features)
+            predicts_all.extend(predicts)
+
+            metrics.update(None, None)  # 
+
+            if i % self.print_freq == 0:
+                print(f'Predict [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
+
+            if proof_of_concept:
+                break
+
+        print(f'Predict [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
+
+        return features_all, predicts_all
+        

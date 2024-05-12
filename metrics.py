@@ -162,3 +162,9 @@ class BinaryMetrics(SimpleBinaryMetrics):
             "F-1": BinaryF1Score(),
             "AUC": BinaryAUROC() 
         })
+
+
+class EmptyMetrics(Metrics):
+
+    def __init__(self):
+        super().__init__({})
