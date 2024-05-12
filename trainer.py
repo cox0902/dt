@@ -334,8 +334,8 @@ class Trainer:
             batch = self.to_device(batch)
 
             features, predicts = self.model.predict(batch)
-            features_all.extend(features)
-            predicts_all.extend(predicts)
+            features_all.extend(features.cpu())
+            predicts_all.extend(predicts.cpu())
 
             metrics.update(None, None)  # 
 
