@@ -40,3 +40,10 @@ class VisModel(nn.Module):
         predicts = torch.sigmoid(logits) if self.use_logits else logits
         return logits, predicts, batch["target"]
 
+    def predict(self, batch):
+        with torch.no_grad():
+            fextractor = nn.Sequential(*self.resnet.children()[:-1])
+            classifier = self.resnet.fc
+            features = fextractor(batch["image"])
+            predicts = torch.sigmoid(classifier(features))
+        return features, predicts
