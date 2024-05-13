@@ -250,7 +250,7 @@ class Trainer:
 
         return metrics.compute(hypotheses, references)
     
-    def test(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False, hook: Optional[str] = None):
+    def test(self, data_loader: DataLoader, metrics: Metrics, hook: Optional[str] = None, proof_of_concept: bool = False):
         model = self.get_model()
         model.eval()
         metrics.reset(len(data_loader))
@@ -278,7 +278,7 @@ class Trainer:
                     _, predicts, targets = model(batch)
                     handler.remove()
 
-                    activations.extend(activation)
+                    activations.extend(activation[hook])
                 else:
                     _, predicts, targets = model(batch)
                
