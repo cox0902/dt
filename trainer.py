@@ -279,7 +279,7 @@ class Trainer:
                     handler.remove()
 
                     print(activation[hook].shape)
-                    activations.extend(activation[hook])
+                    activations.extend(activation[hook].squeeze())
                 else:
                     _, predicts, targets = model(batch)
                
