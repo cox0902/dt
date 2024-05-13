@@ -165,7 +165,7 @@ class GuiVisCodeDataset(Dataset):
         else:
             self.vt = None
         
-        self.vis = np.load(vis_data_path + ".npy")
+        self.vis = np.load(vis_data_path + ".npz")
         self.hc = h5py.File(code_data_path + ".hdf5", "r")
         self.max_len = self.hc.attrs["max_len"]
         self.ids = self.hc["ids"]
@@ -183,8 +183,11 @@ class GuiVisCodeDataset(Dataset):
         code_idx = np.where(self.ids[index, :code_len] == self.eqs[index, :code_len])[0]
 
         iis = self.iis[index][code_idx]
-        vis = np.zeros((self.max_len, ), dtype=np.float32)
-        vis[:len(code_idx)] = self.vis[iis]
+        vish = np.zeros((self.max_len, ), dtype=np.float32)
+        vish[:len(code_idx)] = self.vis["hypotheses"][iis]
+
+        visf = np.zeros((self.max_len, 2048), dtype=np.float32)
+        visf[:len(code_idx)] = self.vis["features"][iis]
 
         code = np.zeros((self.max_len, ), dtype=np.int32)
         code[:len(code_idx)] = self.ivs[index][code_idx]
@@ -209,7 +212,8 @@ class GuiVisCodeDataset(Dataset):
         target[:len(code_idx)] = self.lbs[index][code_idx] 
         
         return {
-            "vis": vis,
+            "vish": vish,
+            "visf": visf,
             "code": code,
             "code_len": len(code_idx),
             "target": torch.FloatTensor(target)
