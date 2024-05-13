@@ -270,7 +270,11 @@ class Trainer:
                     def fn_hook(model, input, output):
                         activation[hook] = output.detach()
 
-                    handler = model.resnet.getattr(hook).register_forward_hook(fn_hook)
+                    if self.ema_model is not None:
+                        handler = model.module.resnet.getattr(hook).register_forward_hook(fn_hook)
+                    else:
+                        handler = model.resnet.getattr(hook).register_forward_hook(fn_hook)
+
                     _, predicts, targets = model(batch)
                     handler.remove()
 
