@@ -278,6 +278,7 @@ class Trainer:
                     _, predicts, targets = model(batch)
                     handler.remove()
 
+                    print(activation[hook].shape)
                     activations.extend(activation[hook])
                 else:
                     _, predicts, targets = model(batch)
