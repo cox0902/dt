@@ -306,7 +306,7 @@ class Trainer:
 
         if hook is None:
             return hypotheses, references
-        return hypotheses, references, np.arrray(activations)
+        return hypotheses, references, np.array(activations)
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
             save_checkpoint: bool = True, proof_of_concept: bool = False):
