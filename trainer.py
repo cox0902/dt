@@ -301,7 +301,7 @@ class Trainer:
 
         if hook is None:
             return hypotheses, references
-        return hypotheses, references, activations
+        return hypotheses, references, torch.Tensor(activations)
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
             save_checkpoint: bool = True, proof_of_concept: bool = False):
