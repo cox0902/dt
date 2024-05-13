@@ -153,10 +153,11 @@ class GuiVisDataset(Dataset):
 
 class GuiVisCodeDataset(Dataset):
 
-    def __init__(self, vis_data_path: str, code_data_path: str, mask: float = .0, 
+    def __init__(self, vis_data_path: str, code_data_path: str, need_features: bool = False, mask: float = .0, 
                  vocabs_trans: Optional[str] = None):
         super().__init__()
 
+        self.need_features = need_features
         self.mask = mask
 
         if vocabs_trans is not None:
@@ -186,8 +187,9 @@ class GuiVisCodeDataset(Dataset):
         vish = np.zeros((self.max_len, ), dtype=np.float32)
         vish[:len(code_idx)] = self.vis["hypotheses"][iis]
 
-        visf = np.zeros((self.max_len, 2048), dtype=np.float32)
-        visf[:len(code_idx)] = self.vis["features"][iis]
+        if self.need_features:
+            visf = np.zeros((self.max_len, 2048), dtype=np.float32)
+            visf[:len(code_idx)] = self.vis["features"][iis]
 
         code = np.zeros((self.max_len, ), dtype=np.int32)
         code[:len(code_idx)] = self.ivs[index][code_idx]
@@ -211,11 +213,18 @@ class GuiVisCodeDataset(Dataset):
         target = np.zeros((self.max_len, ), dtype=np.int32)
         target[:len(code_idx)] = self.lbs[index][code_idx] 
         
+        if self.need_features:
+            return {
+                "vish": vish,
+                "visf": visf,
+                "code": code,
+                "code_len": len(code_idx),
+                "target": torch.FloatTensor(target)
+            }
+
         return {
             "vish": vish,
-            "visf": visf,
             "code": code,
             "code_len": len(code_idx),
             "target": torch.FloatTensor(target)
-        }
-    
+        }   

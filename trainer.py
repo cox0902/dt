@@ -257,6 +257,7 @@ class Trainer:
 
         references = []
         hypotheses = []
+        hypologits = []
         activations = []
 
         print()
@@ -275,13 +276,13 @@ class Trainer:
                     else:
                         handler = getattr(model.resnet, hook).register_forward_hook(fn_hook)
 
-                    _, predicts, targets = model(batch)
+                    logits, predicts, targets = model(batch)
                     handler.remove()
 
                     # print(activation[hook].shape)
                     activations.extend(activation[hook].squeeze().cpu().numpy())
                 else:
-                    _, predicts, targets = model(batch)
+                    logits, predicts, targets = model(batch)
                
                 metrics.update(None, None)  # 
 
@@ -290,6 +291,7 @@ class Trainer:
 
                 references.extend(targets.squeeze())
                 hypotheses.extend(predicts.squeeze())
+                hypologits.extend(logits.squeeze())
 
                 if proof_of_concept:
                     break
@@ -305,8 +307,8 @@ class Trainer:
             metrics.compute(hypotheses, references)
 
         if hook is None:
-            return hypotheses, references
-        return hypotheses, references, np.array(activations)
+            return hypotheses, references, torch.Tensor(hypologits)
+        return hypotheses, references, torch.Tensor(hypologits), np.array(activations)
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
             save_checkpoint: bool = True, proof_of_concept: bool = False):
