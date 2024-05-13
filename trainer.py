@@ -278,7 +278,7 @@ class Trainer:
                     _, predicts, targets = model(batch)
                     handler.remove()
 
-                    print(activation[hook].shape)
+                    # print(activation[hook].shape)
                     activations.extend(activation[hook].squeeze().cpu().numpy())
                 else:
                     _, predicts, targets = model(batch)
