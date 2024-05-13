@@ -279,7 +279,7 @@ class Trainer:
                     handler.remove()
 
                     print(activation[hook].shape)
-                    activations.extend(activation[hook].squeeze())
+                    activations.extend(activation[hook].squeeze().numpy())
                 else:
                     _, predicts, targets = model(batch)
                
@@ -306,7 +306,7 @@ class Trainer:
 
         if hook is None:
             return hypotheses, references
-        return hypotheses, references, activations
+        return hypotheses, references, np.arrray(activations)
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
             save_checkpoint: bool = True, proof_of_concept: bool = False):
