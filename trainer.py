@@ -250,20 +250,33 @@ class Trainer:
 
         return metrics.compute(hypotheses, references)
     
-    def test(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False):
+    def test(self, data_loader: DataLoader, metrics: Metrics, proof_of_concept: bool = False, hook: Optional[str] = None):
         model = self.get_model()
         model.eval()
         metrics.reset(len(data_loader))
 
         references = []
         hypotheses = []
+        activations = []
 
         print()
         with torch.no_grad():
             for i, batch in enumerate(data_loader):
                 batch = self.to_device(batch)
                 # targets = batch["target"]
-                _, predicts, targets = model(batch)
+
+                if hook is not None:
+                    activation = {}
+                    def fn_hook(model, input, output):
+                        activation[hook] = output.detach()
+
+                    handler = model.resnet.getattr(hook).register_forward_hook(fn_hook)
+                    _, predicts, targets = model(batch)
+                    handler.remove()
+
+                    activations.extend(activation)
+                else:
+                    _, predicts, targets = model(batch)
                
                 metrics.update(None, None)  # 
 
@@ -285,7 +298,10 @@ class Trainer:
             print(f'\n* {metrics.format(show_average=False, show_batch_time=False, show_loss=False)}')
 
             metrics.compute(hypotheses, references)
-        return hypotheses, references
+
+        if hook is None:
+            return hypotheses, references
+        return hypotheses, references, activations
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
             save_checkpoint: bool = True, proof_of_concept: bool = False):
