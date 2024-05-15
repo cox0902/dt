@@ -3,35 +3,59 @@ from typing import *
 import json
 import h5py
 import numpy as np
+from pathlib import Path
 
 import torch
 from torch.utils.data import Dataset
 
+from .helpers import plot
+
 
 class GuiVisDataset(Dataset):
 
-    def __init__(self, data_path: str, transform = None, 
-                 label_smooth: bool = False):
-        self.h = h5py.File(data_path + ".hdf5", "r")
+    def __init__(self, data_path: str, set_name: Literal["train", "valid", "test"], fold: int = 0, 
+                 transform = None, label_smooth: bool = False):
+        self.set_name = set_name
+        self.fold_num = fold
+
+        self.split = np.load(Path(data_path) / f"split_fold_{fold}.npz")[set_name]
+        
+        self.h = h5py.File(Path(data_path) / "images.hdf5", "r")
         self.images = self.h["images"]
-        # self.ricoid = self.h["ricoid"]
-        self.masks = self.h["masks"]
-        self.rects = self.h["rects"]
-        self.labels = self.h["labels"]
+        # # self.ricoid = self.h["ricoid"]
+        # self.masks = self.h["masks"]
+        # self.rects = self.h["rects"]
+        # self.labels = self.h["labels"]
+
         self.transform = transform
         self.mode = None
         self.leaf_only = False
         self.extras = 0
         self.k = 10
         self.label_smooth = label_smooth
+    
+    @property
+    def masks(self):
+        return self.h["masks"][self.split]
+    
+    @property
+    def rects(self):
+        return self.h["rects"][self.split]
+    
+    @property
+    def labels(self):
+        return self.h["labels"][self.split]
 
     def summary(self):
+        print(f"Dataset Name: {self.set_name}#{self.fold_num}")
         print(f"Dataset Size: {len(self)}")
         print(f" Labels Size: {np.bincount(self.labels[:, 2])}")
 
     def __getitem__(self, i: int) -> Dict:
-        if i >= len(self.labels) or -self.extras <= i < 0:
+        if i >= len(self.split) or -self.extras <= i < 0:
+            assert self.set_name == "train"
             return self.__getoovitem()
+
         img_idx = self.labels[i, 0]
         label = self.labels[i, 2]
         img = torch.from_numpy(self.images[img_idx])
@@ -42,17 +66,17 @@ class GuiVisDataset(Dataset):
         if self.transform is not None:
             img, img_mask, _ = self.transform(img, img_mask, img_rect)
         img = torch.cat([img, img_mask], dim=0)
-        if self.label_smooth:
-            label = torch.FloatTensor([np.clip(label, 0.1, 0.9)])
-        else:
-            label = torch.FloatTensor([label])
+        # if self.label_smooth:
+        #     label = torch.FloatTensor([np.clip(label, 0.1, 0.9)])
+        # else:
+        label = torch.FloatTensor([label])
         return {
             "image": img, 
             "target": label
         }
     
     def __getoovitem(self):
-        img_index = np.random.randint(len(self.images))
+        img_index = np.random.choice(np.unique(self.labels[:, 0]))
         img = torch.from_numpy(self.images[img_index])
         # print("sampled : ", self.labels[np.random.choice(np.where(self.labels[:, 0] == img_index)[0])])
 
@@ -134,8 +158,8 @@ class GuiVisDataset(Dataset):
         }
 
     def __len__(self) -> int:
-        return len(self.labels) + self.extras
-    
+        return len(self.split) + self.extras
+
     @property
     def sample_weights(self):
         labels = self.labels[:, 2]
@@ -143,12 +167,22 @@ class GuiVisDataset(Dataset):
         return labels_weights[labels]
     
     def resample(self, mode: Literal["rnd", "neg"], k: int = 10, leaf_only: bool = False):
+        assert self.set_name == "train"
         self.mode = mode
         self.leaf_only = leaf_only
         self.k = k
         bincount = np.bincount(self.labels[:, 2])
         self.extras = bincount[1] - bincount[0]
         assert self.extras > 0
+
+    def vis(self, i: Optional[int] = None):
+        if i is None:
+            i = np.random.randint(len(self))
+        data = self[i]
+        plot([(data["image"][:-1], {}), (data["image"][-1], {}), 
+              (data["image"][:-1], { "masks": data["image"][-1] })],
+             [("original", "mask", f"{data['target'].item():.4f}")],
+             figshow_kwargs={ "figsize": (12, 4) })
 
 
 class GuiVisCodeDataset(Dataset):
