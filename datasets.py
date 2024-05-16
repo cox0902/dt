@@ -23,9 +23,9 @@ class GuiVisDataset(Dataset):
         self.h = h5py.File(Path(data_path) / "images.hdf5", "r")
         self.images = self.h["images"]
         # # self.ricoid = self.h["ricoid"]
-        # self.masks = self.h["masks"]
-        # self.rects = self.h["rects"]
-        # self.labels = self.h["labels"]
+        self.masks = self.h["masks"]
+        self.rects = self.h["rects"]
+        self.labels = self.h["labels"][self.split]
 
         self.transform = transform
         self.mode = None
@@ -33,18 +33,6 @@ class GuiVisDataset(Dataset):
         self.extras = 0
         self.k = 10
         self.label_smooth = label_smooth
-    
-    @property
-    def masks(self):
-        return self.h["masks"][self.split]
-    
-    @property
-    def rects(self):
-        return self.h["rects"][self.split]
-    
-    @property
-    def labels(self):
-        return self.h["labels"][self.split]
 
     def summary(self):
         print(f"Dataset Name: {self.set_name}#{self.fold_num}")
@@ -59,8 +47,8 @@ class GuiVisDataset(Dataset):
         img_idx = self.labels[i, 0]
         label = self.labels[i, 2]
         img = torch.from_numpy(self.images[img_idx])
-        img_mask = torch.FloatTensor(self.masks[i] / 255.)
-        img_rect = torch.FloatTensor(self.rects[i])
+        img_mask = torch.FloatTensor(self.masks[self.split[i]] / 255.)
+        img_rect = torch.FloatTensor(self.rects[self.split[i]])
         # img = torch.FloatTensor(self.images[img_idx] / 255.)
         # img_mask = torch.FloatTensor(self.masks[i] / 255.)
         if self.transform is not None:
@@ -86,7 +74,7 @@ class GuiVisDataset(Dataset):
             ))[0]
         else:
             msk_indices_pos = np.where(self.labels[:, 0] == img_index)[0]
-        img_masks_pos = self.masks[msk_indices_pos] / 255.
+        img_masks_pos = self.masks[self.split[msk_indices_pos]] / 255.
 
         if self.mode == "rnd":
             if self.leaf_only:
@@ -96,8 +84,8 @@ class GuiVisDataset(Dataset):
             else:
                 msk_index = np.random.choice(np.where(self.labels[:, 0] != img_index)[0])
             # print("randomed: ", self.labels[msk_index])
-            img_mask = torch.FloatTensor(self.masks[msk_index] / 255.)
-            img_rect = torch.FloatTensor(self.rects[msk_index])
+            img_mask = torch.FloatTensor(self.masks[self.split[msk_index]] / 255.)
+            img_rect = torch.FloatTensor(self.rects[self.split[msk_index]])
         else:  # "neg"
             # img_mask_pos = np.sum(img_masks_pos, axis=0) / len(msk_indices_pos)
 
@@ -111,7 +99,7 @@ class GuiVisDataset(Dataset):
                     np.where(self.labels[:, 0] != img_index)[0], 
                     (self.k, ), replace=False)
             msk_indices_neg = np.sort(msk_indices_neg)
-            img_masks_neg = self.masks[msk_indices_neg] / 255.
+            img_masks_neg = self.masks[self.split[msk_indices_neg]] / 255.
 
             ious = np.zeros((img_masks_pos.shape[0], img_masks_neg.shape[0]), dtype=np.float32)
             # print(ious.shape, img_masks_pos.shape, img_masks_neg.shape)
@@ -136,8 +124,8 @@ class GuiVisDataset(Dataset):
             # msk_index_neg = np.random.choice(len(img_masks_weights), p=p)
             msk_index_neg = msk_indices_neg[msk_index_neg]
 
-            img_mask = torch.FloatTensor(self.masks[msk_index_neg] / 255.)
-            img_rect = torch.FloatTensor(self.rects[msk_index_neg])
+            img_mask = torch.FloatTensor(self.masks[self.split[msk_index_neg]] / 255.)
+            img_rect = torch.FloatTensor(self.rects[self.split[msk_index_neg]])
 
         if self.label_smooth:
             # mask_i = np.logical_and(img_masks_pos, img_mask.numpy())
@@ -158,7 +146,7 @@ class GuiVisDataset(Dataset):
         }
 
     def __len__(self) -> int:
-        return len(self.split) + self.extras
+        return len(self.labels) + self.extras
 
     @property
     def sample_weights(self):
