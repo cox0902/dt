@@ -7,7 +7,8 @@ import torchvision
 
 class VisModel(nn.Module):
 
-    def __init__(self, model: Literal["resnet", "resnext"] = "resnet", copy_weight: bool = False, use_logits: bool = False):
+    def __init__(self, model: Literal["resnet", "resnext"] = "resnet", copy_weight: bool = False, mean_weight: bool = False, 
+                 use_logits: bool = False):
         super(VisModel, self).__init__()
         self.use_logits = use_logits
 
@@ -24,7 +25,8 @@ class VisModel(nn.Module):
 
         if copy_weight:
             new_conv1.weight.data[:, :old_conv1.in_channels, :, :] = old_conv1.weight.data.clone()
-            new_conv1.weight.data[:, old_conv1.in_channels:, :, :] = old_conv1.weight.data.mean(dim=1, keepdim=True)
+            if mean_weight:
+                new_conv1.weight.data[:, old_conv1.in_channels:, :, :] = old_conv1.weight.data.mean(dim=1, keepdim=True)
 
         resnet.conv1 = new_conv1
         sequential = [

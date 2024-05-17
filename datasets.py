@@ -175,9 +175,13 @@ class GuiVisDataset(Dataset):
 
 class GuiVisCodeDataset(Dataset):
 
-    def __init__(self, vis_data_path: str, code_data_path: str, need_features: bool = False, mask: float = .0, 
-                 vocabs_trans: Optional[str] = None):
+    def __init__(self, vis_data_path: str, data_path: str, set_name: Literal["train", "valid", "test"], fold: int = 0,
+                 need_features: bool = False, mask: float = .0, vocabs_trans: Optional[str] = None):
         super().__init__()
+        self.set_name = set_name
+        self.fold_num = fold
+
+        self.split = np.load(Path(data_path) / f"split_fold_{fold}.npz")[set_name]
 
         self.need_features = need_features
         self.mask = mask
@@ -189,14 +193,21 @@ class GuiVisCodeDataset(Dataset):
             self.vt = None
         
         self.vis = np.load(vis_data_path + ".npz")
-        self.hc = h5py.File(code_data_path + ".hdf5", "r")
+
+        with h5py.File(Path(data_path) / "images.hdf5", "r") as h:
+            images = np.unique(h["labels"][self.split, 0])
+
+        self.hc = h5py.File(Path(data_path) / "codes.hdf5", "r")
         self.max_len = self.hc.attrs["max_len"]
-        self.ids = self.hc["ids"]
-        self.iis = self.hc["iis"]
-        self.eqs = self.hc["eqs"]
-        self.lbs = self.hc["lbs"]
-        self.ivs = self.hc["ivs"]
-        self.les = self.hc["les"]
+        idx = np.where(np.isin(self.hc["ims"][:], images))[0]
+
+        self.ims = self.hc["ims"][idx]
+        self.ids = self.hc["ids"][idx]
+        self.iis = self.hc["iis"][idx]
+        self.eqs = self.hc["eqs"][idx]
+        self.lbs = self.hc["lbs"][idx]
+        self.ivs = self.hc["ivs"][idx]
+        self.les = self.hc["les"][idx]
 
     def __len__(self) -> int:
         return len(self.ids)
