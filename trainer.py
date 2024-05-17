@@ -54,6 +54,7 @@ class Trainer:
         self.epochs_since_improvement: int = 0
         self.best_score: float = 0.
 
+        self.seed = None
         self.generator = generator
         self.state = None
 
@@ -148,6 +149,7 @@ class Trainer:
         print(f"- score     : {saved['score']}")
 
         trainer = Trainer(model=model, criterion=criterion, optimizer=optimizer, generator=None)
+        trainer.seed = saved["seed"] if "seed" in saved else None
         trainer.epoch = saved["epoch"] + 1
         trainer.epochs_since_improvement = saved["epochs_since_improvement"]
         trainer.best_score = saved["score"]

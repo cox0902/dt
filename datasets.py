@@ -13,19 +13,24 @@ from .helpers import plot
 
 class GuiVisDataset(Dataset):
 
-    def __init__(self, data_path: str, set_name: Literal["train", "valid", "test"], fold: int = 0, 
-                 transform = None, label_smooth: bool = False):
+    def __init__(self, data_path: str, set_name: Optional[Literal["train", "valid", "test"]] = None, 
+                 fold: Optional[int] = None, transform = None, label_smooth: bool = False):
         self.set_name = set_name
         self.fold_num = fold
 
-        self.split = np.load(Path(data_path) / f"split_fold_{fold}.npz")[set_name]
+        if set_name is not None and fold is not None:
+            self.split = np.load(Path(data_path) / f"split_fold_{fold}.npz")[set_name]
+        elif set_name is None and fold is None:
+            self.split = None
+        else:
+            assert False
         
         self.h = h5py.File(Path(data_path) / "images.hdf5", "r")
         self.images = self.h["images"]
         # # self.ricoid = self.h["ricoid"]
         self.masks = self.h["masks"]
         self.rects = self.h["rects"]
-        self.labels = self.h["labels"][self.split]
+        self.labels = self.h["labels"][self.split] if self.split else self.h["labels"]
 
         self.transform = transform
         self.mode = None
@@ -34,21 +39,25 @@ class GuiVisDataset(Dataset):
         self.k = 10
         self.label_smooth = label_smooth
 
+    def __idx(self, idx):
+        return self.split[idx] if self.split else idx
+
     def summary(self):
-        print(f"Dataset Name: {self.set_name}#{self.fold_num}")
+        if self.split:
+            print(f"Dataset Name: {self.set_name}#{self.fold_num}")
         print(f"Dataset Size: {len(self)}")
         print(f" Labels Size: {np.bincount(self.labels[:, 2])}")
 
     def __getitem__(self, i: int) -> Dict:
-        if i >= len(self.split) or -self.extras <= i < 0:
+        if i >= len(self.labels) or -self.extras <= i < 0:
             assert self.set_name == "train"
             return self.__getoovitem()
 
         img_idx = self.labels[i, 0]
         label = self.labels[i, 2]
         img = torch.from_numpy(self.images[img_idx])
-        img_mask = torch.FloatTensor(self.masks[self.split[i]] / 255.)
-        img_rect = torch.FloatTensor(self.rects[self.split[i]])
+        img_mask = torch.FloatTensor(self.masks[self.__idx(i)] / 255.)
+        img_rect = torch.FloatTensor(self.rects[self.__idx(i)])
         # img = torch.FloatTensor(self.images[img_idx] / 255.)
         # img_mask = torch.FloatTensor(self.masks[i] / 255.)
         if self.transform is not None:
@@ -74,7 +83,7 @@ class GuiVisDataset(Dataset):
             ))[0]
         else:
             msk_indices_pos = np.where(self.labels[:, 0] == img_index)[0]
-        img_masks_pos = self.masks[self.split[msk_indices_pos]] / 255.
+        img_masks_pos = self.masks[self.__idx(msk_indices_pos)] / 255.
 
         if self.mode == "rnd":
             if self.leaf_only:
@@ -84,8 +93,8 @@ class GuiVisDataset(Dataset):
             else:
                 msk_index = np.random.choice(np.where(self.labels[:, 0] != img_index)[0])
             # print("randomed: ", self.labels[msk_index])
-            img_mask = torch.FloatTensor(self.masks[self.split[msk_index]] / 255.)
-            img_rect = torch.FloatTensor(self.rects[self.split[msk_index]])
+            img_mask = torch.FloatTensor(self.masks[self.__idx(msk_index)] / 255.)
+            img_rect = torch.FloatTensor(self.rects[self.__idx(msk_index)])
         else:  # "neg"
             # img_mask_pos = np.sum(img_masks_pos, axis=0) / len(msk_indices_pos)
 
@@ -99,7 +108,7 @@ class GuiVisDataset(Dataset):
                     np.where(self.labels[:, 0] != img_index)[0], 
                     (self.k, ), replace=False)
             msk_indices_neg = np.sort(msk_indices_neg)
-            img_masks_neg = self.masks[self.split[msk_indices_neg]] / 255.
+            img_masks_neg = self.masks[self.__idx(msk_indices_neg)] / 255.
 
             ious = np.zeros((img_masks_pos.shape[0], img_masks_neg.shape[0]), dtype=np.float32)
             # print(ious.shape, img_masks_pos.shape, img_masks_neg.shape)
@@ -124,8 +133,8 @@ class GuiVisDataset(Dataset):
             # msk_index_neg = np.random.choice(len(img_masks_weights), p=p)
             msk_index_neg = msk_indices_neg[msk_index_neg]
 
-            img_mask = torch.FloatTensor(self.masks[self.split[msk_index_neg]] / 255.)
-            img_rect = torch.FloatTensor(self.rects[self.split[msk_index_neg]])
+            img_mask = torch.FloatTensor(self.masks[self.__idx(msk_index_neg)] / 255.)
+            img_rect = torch.FloatTensor(self.rects[self.__idx(msk_index_neg)])
 
         if self.label_smooth:
             # mask_i = np.logical_and(img_masks_pos, img_mask.numpy())
