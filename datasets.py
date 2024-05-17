@@ -30,7 +30,7 @@ class GuiVisDataset(Dataset):
         # # self.ricoid = self.h["ricoid"]
         self.masks = self.h["masks"]
         self.rects = self.h["rects"]
-        self.labels = self.h["labels"][self.split] if self.split else self.h["labels"]
+        self.labels = self.h["labels"][self.split] if self.split is not None else self.h["labels"]
 
         self.transform = transform
         self.mode = None
@@ -40,7 +40,7 @@ class GuiVisDataset(Dataset):
         self.label_smooth = label_smooth
 
     def __idx(self, idx):
-        return self.split[idx] if self.split else idx
+        return self.split[idx] if self.split is not None else idx
 
     def summary(self):
         if self.split:
@@ -95,7 +95,7 @@ class GuiVisDataset(Dataset):
             # print("randomed: ", self.labels[msk_index])
             img_mask = torch.FloatTensor(self.masks[self.__idx(msk_index)] / 255.)
             img_rect = torch.FloatTensor(self.rects[self.__idx(msk_index)])
-        else:  # "neg"
+        elif self.mode == "neg":  # "neg"
             # img_mask_pos = np.sum(img_masks_pos, axis=0) / len(msk_indices_pos)
 
             if self.leaf_only:
@@ -135,6 +135,8 @@ class GuiVisDataset(Dataset):
 
             img_mask = torch.FloatTensor(self.masks[self.__idx(msk_index_neg)] / 255.)
             img_rect = torch.FloatTensor(self.rects[self.__idx(msk_index_neg)])
+        else:
+            assert False
 
         if self.label_smooth:
             # mask_i = np.logical_and(img_masks_pos, img_mask.numpy())
