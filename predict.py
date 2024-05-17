@@ -24,6 +24,7 @@ def get_args_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fold", type=int)
 
     parser.add_argument("-b", "--batch-size", default=128, type=int)
+    parser.add_argument("-j", "--workers", default=4, type=int)
 
     parser.add_argument("--save-path", type=str)
 
@@ -44,7 +45,8 @@ def main(args):
     if args.save_path:
         print("=" * 100)
         data_loader = DataLoader(GuiVisDataset(args.data_path, None, None, transform=GuiVisPresetEval()), 
-                                batch_size=args.batch_size, shuffle=False, pin_memory=True)
+                                batch_size=args.batch_size, shuffle=False, pin_memory=True,
+                                num_workers=args.workers)
         
         predicts, _, logits, features = trainer.test(data_loader=data_loader, metrics=SimpleBinaryMetrics(), 
                                                     hook="avgpool", proof_of_concept=False)
