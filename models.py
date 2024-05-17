@@ -7,15 +7,21 @@ import torchvision
 
 class VisModel(nn.Module):
 
-    def __init__(self, model: Literal["resnet", "resnext"] = "resnet", copy_weight: bool = False, mean_weight: bool = False, 
+    def __init__(self, model: Literal["resnet", "resnext"] = "resnet", load_weight: bool = False, copy_weight: bool = False,  
                  use_logits: bool = False):
         super(VisModel, self).__init__()
         self.use_logits = use_logits
 
         if model == "resnet":
-            resnet = torchvision.models.resnet50(weights=torchvision.models.ResNet50_Weights.DEFAULT)
+            if load_weight:
+                resnet = torchvision.models.resnet50(weights=torchvision.models.ResNet50_Weights.DEFAULT)
+            else:
+                resnet = torchvision.models.resnet50()
         elif model == "resnext":
-            resnet = torchvision.models.resnext50_32x4d(weights=torchvision.models.ResNeXt50_32X4D_Weights.DEFAULT)
+            if load_weight:
+                resnet = torchvision.models.resnext50_32x4d(weights=torchvision.models.ResNeXt50_32X4D_Weights.DEFAULT)
+            else:
+                resnet = torchvision.models.resnext50_32x4d()
         else:
             assert False, model
         
@@ -23,9 +29,9 @@ class VisModel(nn.Module):
         new_conv1 = nn.Conv2d(in_channels=4, out_channels=old_conv1.out_channels, kernel_size=old_conv1.kernel_size, 
                               stride=old_conv1.stride, padding=old_conv1.padding, bias=old_conv1.bias)
 
-        if copy_weight:
+        if load_weight:
             new_conv1.weight.data[:, :old_conv1.in_channels, :, :] = old_conv1.weight.data.clone()
-            if mean_weight:
+            if copy_weight:
                 new_conv1.weight.data[:, old_conv1.in_channels:, :, :] = old_conv1.weight.data.mean(dim=1, keepdim=True)
 
         resnet.conv1 = new_conv1

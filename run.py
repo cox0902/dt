@@ -23,8 +23,8 @@ def get_args_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int)
 
     parser.add_argument("--model", type=str)
+    parser.add_argument("--load-weight", action="store_true")
     parser.add_argument("--copy-weight", action="store_true")
-    parser.add_argument("--mean-weight", action="store_true")
 
     parser.add_argument("--opt", type=str)
     parser.add_argument("--lr", default=1e-3, type=float)
@@ -50,7 +50,7 @@ def main(args):
 
     generator, seed_worker = seed_everything(args.seed)
 
-    model = VisModel(model=args.model, copy_weight=args.copy_weight, mean_weight=args.mean_weight,
+    model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight, 
                      use_logits=True)
     criterion = nn.BCEWithLogitsLoss()
 
