@@ -33,6 +33,8 @@ class VisModel(nn.Module):
             new_conv1.weight.data[:, :old_conv1.in_channels, :, :] = old_conv1.weight.data.clone()
             if copy_weight:
                 new_conv1.weight.data[:, old_conv1.in_channels:, :, :] = old_conv1.weight.data.mean(dim=1, keepdim=True)
+        else:
+            assert not copy_weight
 
         resnet.conv1 = new_conv1
         sequential = [
