@@ -168,6 +168,11 @@ class Trainer:
         if self.ema_model is not None:
             return self.ema_model
         return self.model
+    
+    def get_inner_model(self) -> nn.Module:
+        if self.ema_model is not None:
+            return self.ema_model.module
+        return self.model
 
     def train(self, data_loader: DataLoader, metrics: Metrics, epoch: int, proof_of_concept: bool = False):
         self.model.train()

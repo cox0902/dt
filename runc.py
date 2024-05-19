@@ -74,8 +74,13 @@ def main(args):
     
     # 
 
-    vis_model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight, 
-                         use_logits=True)
+    if args.model in ["resnet", "resnext"]:
+        vis_model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight, 
+                            use_logits=True)
+    else:
+        vis_trainer = Trainer.load_checkpoint(args.model)
+        vis_model = vis_trainer.get_inner_model()
+
     model = VisCodeModel(vis_model, 86, train_set.max_len, embedding_size=args.embedding_size, hidden_size=args.hidden_size)
 
     criterion = nn.BCEWithLogitsLoss()
