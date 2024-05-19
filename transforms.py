@@ -1,3 +1,4 @@
+from typing import *
 
 import torch
 import torchvision.transforms.v2 as T
@@ -111,12 +112,21 @@ class GuiVisPresetTrain:
         ])
         self.transforms_all = T.Compose(transforms_all)
 
-    def __call__(self, img, img_mask, img_rect):
+    def __call__(self, img, img_mask: Optional[Any] = None, img_rect: Optional[Any] = None):
         if self.transforms_img is not None:
             img = self.transforms_img(img)
-        return self.transforms_all(
-            img, tv_tensors.Mask(img_mask), 
-            tv_tensors.BoundingBoxes(img_rect, format="XYXY", canvas_size=(256, 256)))
+
+        if img_mask is not None and img_rect is not None:
+            return self.transforms_all(
+                img, tv_tensors.Mask(img_mask), 
+                tv_tensors.BoundingBoxes(img_rect, format="XYXY", canvas_size=(256, 256)))
+        elif img_mask is not None:
+            return self.transforms_all(img, tv_tensors.Mask(img_mask)), None
+        elif img_rect is not None:
+            img, img_rect = self.transforms_all(
+                img, tv_tensors.BoundingBoxes(img_rect, format="XYXY", canvas_size=(256, 256)))
+            return img, None, img_rect
+        return self.transforms_all(img), None, None
 
 
 class GuiVisPresetEval:
@@ -131,6 +141,6 @@ class GuiVisPresetEval:
             T.ToPureTensor()
         ])
 
-    def __call__(self, img, img_mask, img_rect):
+    def __call__(self, img, img_mask: Optional[Any] = None, img_rect: Optional[Any] = None):
         return self.transforms(img), img_mask, img_rect
     

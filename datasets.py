@@ -184,7 +184,7 @@ class GuiVisDataset(Dataset):
              figshow_kwargs={ "figsize": (12, 4) })
 
 
-class GuiVisCodeDataset(Dataset):
+class GuiCodeDataset(Dataset):
 
     def __init__(self, vis_feature_path: str, data_path: str, set_name: Literal["train", "valid", "test"], 
                  fold: int, need_features: bool = False, mask: float = .0, vocabs_trans: Optional[str] = None):
@@ -268,3 +268,88 @@ class GuiVisCodeDataset(Dataset):
             "code_len": len(code_idx),
             "target": torch.FloatTensor(target)
         }   
+
+
+class GuiVisCodeDataset(Dataset):
+
+    def __init__(self, vis_data_path: str, code_data_path: str, set_name: Literal["train", "valid", "test"], 
+                 fold: int, transform = None, mask: float = .0, vocabs_trans: Optional[str] = None):
+        super().__init__()
+        self.set_name = set_name
+        self.fold_num = fold
+
+        self.split = np.load(Path(code_data_path) / f"split_fold_{fold}.npz")[set_name]
+
+        self.mask = mask
+
+        if vocabs_trans is not None:
+            with open(vocabs_trans, "r") as input:
+                self.vt: List[List[int]] = json.load(input)
+        else:
+            self.vt = None
+        
+        self.h = h5py.File(Path(vis_data_path) / "images.hdf5", "r")
+        self.images = self.h["images"]
+        self.masks = self.h["masks"]
+
+        self.hc = h5py.File(Path(code_data_path) / "codes.hdf5", "r")
+        self.max_len = int(self.hc.attrs["max_len"])
+
+        self.ims = self.hc["ims"][self.split]
+        self.ids = self.hc["ids"][self.split]
+        self.iis = self.hc["iis"][self.split]
+        self.eqs = self.hc["eqs"][self.split]
+        self.lbs = self.hc["lbs"][self.split]
+        self.ivs = self.hc["ivs"][self.split]
+        self.les = self.hc["les"][self.split]
+
+        self.transform = transform
+
+    def __len__(self) -> int:
+        return len(self.ids)
+    
+    def __getitem__(self, index: int) -> Dict:
+        code_len = self.les[index]
+        code_idx = np.where(self.ids[index, :code_len] == self.eqs[index, :code_len])[0]
+
+        ims = self.ims[index]
+        image = torch.from_numpy(self.images[ims])
+
+        if self.transform is not None:
+            image, _, _ = self.transform(image)
+
+        iis = self.iis[index][code_idx]
+        mask = torch.FloatTensor(self.masks[iis] / 255.)
+
+        image_n_mask = torch.zeros(self.max_len, 4, 256, 256)
+        image_n_mask[:len(code_idx), :3, :, :] = image
+        image_n_mask[:len(code_idx), 3:, :, :] = mask
+
+        code = np.zeros((self.max_len, ), dtype=np.int32)
+        code[:len(code_idx)] = self.ivs[index][code_idx]
+
+        if self.vt is not None:
+            # print(f"old: {' '.join([f'{each:3}' for each in code])}")
+            code_uni, code_inv = np.unique(code[:len(code_idx)], return_inverse=True)
+            for i, each_iu in enumerate(code_uni):
+                vt = self.vt[each_iu]
+                if len(vt) > 1:
+                    if np.random.rand() < 0.5:
+                        it = np.random.choice(vt)
+                        code[np.where(code_inv == i)] = it
+            # print(f"new: {' '.join([f'{each:3}' for each in code])}")
+        
+        if self.mask > .0:
+            rand = np.random.rand(*code.shape)
+            rand_mask = (rand < self.mask) * (code != 0)
+            code[rand_mask] = 3
+
+        target = np.zeros((self.max_len, ), dtype=np.int32)
+        target[:len(code_idx)] = self.lbs[index][code_idx] 
+
+        return {
+            "image": image_n_mask,
+            "code": code,
+            "code_len": len(code_idx),
+            "target": torch.FloatTensor(target)
+        }

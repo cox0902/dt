@@ -57,3 +57,76 @@ class VisModel(nn.Module):
             features = fextractor(batch["image"]).squeeze()
             predicts = torch.sigmoid(classifier(features))
         return features, predicts
+
+
+class VisCodeModel(nn.Module):
+
+    def __init__(self, vis_model: VisModel, vocab_size: int, max_len: int, embedding_size: int, hidden_size: int, 
+                 dropout: float = 0.):
+        super(VisCodeModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.max_len = max_len
+
+        self.vis_model = nn.Sequential(*list(vis_model.resnet.children())[:-1])
+        self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=0)
+        self.lstm_cell = nn.LSTMCell(embedding_size + 2048 + 1, hidden_size, bias=True)
+        self.dropout = nn.Dropout(p=dropout)
+        self.fc = nn.Linear(hidden_size, 1)
+
+    def inner_forward(self, batch):
+        x = self.embedding(batch["code"])
+        seq_lens = batch["code_len"]
+        images = batch["image"]
+
+        # sort input by descending length
+        _, idx_sort = torch.sort(seq_lens, dim=0, descending=True)
+        _, idx_unsort = torch.sort(idx_sort, dim=0)
+        x_sort = torch.index_select(x, dim=0, index=idx_sort)
+        seq_lens_sort = torch.index_select(seq_lens, dim=0, index=idx_sort)
+        images_sort = torch.index_select(images, dim=0, index=idx_sort)
+
+        h = torch.zeros(x.size(0), self.hidden_size, dtype=x.dtype, device=x.device)
+        c = torch.zeros(x.size(0), self.hidden_size, dtype=x.dtype, device=x.device)
+
+        y_sort = torch.zeros(x.size(0), self.max_len, 1).to(x.device)
+        x_prev = torch.ones(x.size(0), 1).to(x.device)
+
+        lengths = seq_lens_sort.tolist()
+        for t in range(max(lengths)):
+            batch_size_t = sum([l > t for l in lengths])
+
+            vis = self.vis_model(images_sort[:batch_size_t, t, :, :, :]).squeeze()
+
+            h, c = self.lstm_cell(torch.cat([x_sort[:batch_size_t, t, :], vis, x_prev[:batch_size_t, :]], dim=1), 
+                                  (h[:batch_size_t], c[:batch_size_t]))
+
+            out = self.fc(self.dropout(h))
+
+            if self.training:
+                y_sort[:batch_size_t, t, :] = out
+            else:
+                y_sort[:batch_size_t, t, :] = out
+                y_sort[:batch_size_t, t, :][x_prev[:batch_size_t, :] <= 0.5] = -4.
+
+            x_prev[:batch_size_t, :] = torch.sigmoid(out)
+
+        logits = torch.index_select(y_sort, dim=0, index=idx_unsort)
+        return logits
+    
+    def forward(self, batch):
+        logits = self.inner_forward(batch)
+
+        mask = batch["code"] != 0
+        logits = torch.masked_select(logits.squeeze(), mask)
+        targets = torch.masked_select(batch["target"], mask)
+
+        predicts = torch.sigmoid(logits)
+        return logits, predicts, targets
+
+    def predict(self, batch):
+        logits = self.inner_forward(batch).squeeze()
+        predicts = torch.sigmoid(logits)
+
+        mask = batch["code"] != 0
+        masked = torch.all(mask * batch["target"] == mask * (predicts > 0.5), dim=-1)
+        return { "corrects": masked }
