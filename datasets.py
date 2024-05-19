@@ -186,8 +186,8 @@ class GuiVisDataset(Dataset):
 
 class GuiVisCodeDataset(Dataset):
 
-    def __init__(self, vis_data_path: str, data_path: str, set_name: Literal["train", "valid", "test"], fold: int = 0,
-                 need_features: bool = False, mask: float = .0, vocabs_trans: Optional[str] = None):
+    def __init__(self, vis_feature_path: str, data_path: str, set_name: Literal["train", "valid", "test"], 
+                 fold: int, need_features: bool = False, mask: float = .0, vocabs_trans: Optional[str] = None):
         super().__init__()
         self.set_name = set_name
         self.fold_num = fold
@@ -203,22 +203,18 @@ class GuiVisCodeDataset(Dataset):
         else:
             self.vt = None
         
-        self.vis = np.load(vis_data_path + ".npz")
-
-        with h5py.File(Path(data_path) / "images.hdf5", "r") as h:
-            images = np.unique(h["labels"][self.split, 0])
+        self.vis = np.load(vis_feature_path)
 
         self.hc = h5py.File(Path(data_path) / "codes.hdf5", "r")
         self.max_len = self.hc.attrs["max_len"]
-        idx = np.where(np.isin(self.hc["ims"][:], images))[0]
 
-        self.ims = self.hc["ims"][idx]
-        self.ids = self.hc["ids"][idx]
-        self.iis = self.hc["iis"][idx]
-        self.eqs = self.hc["eqs"][idx]
-        self.lbs = self.hc["lbs"][idx]
-        self.ivs = self.hc["ivs"][idx]
-        self.les = self.hc["les"][idx]
+        self.ims = self.hc["ims"][self.split]
+        self.ids = self.hc["ids"][self.split]
+        self.iis = self.hc["iis"][self.split]
+        self.eqs = self.hc["eqs"][self.split]
+        self.lbs = self.hc["lbs"][self.split]
+        self.ivs = self.hc["ivs"][self.split]
+        self.les = self.hc["les"][self.split]
 
     def __len__(self) -> int:
         return len(self.ids)
@@ -229,7 +225,7 @@ class GuiVisCodeDataset(Dataset):
 
         iis = self.iis[index][code_idx]
         vish = np.zeros((self.max_len, ), dtype=np.float32)
-        vish[:len(code_idx)] = self.vis["hypotheses"][iis]
+        vish[:len(code_idx)] = self.vis["predicts"][iis]
 
         if self.need_features:
             visf = np.zeros((self.max_len, 2048), dtype=np.float32)

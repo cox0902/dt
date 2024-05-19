@@ -11,6 +11,7 @@ from dt.trainer import Trainer
 from dt.metrics import SimpleBinaryMetrics
 from dt.datasets import GuiVisDataset
 from dt.transforms import GuiVisPresetEval
+from dt.models import VisModel
 
 
 def get_args_parser() -> argparse.ArgumentParser:

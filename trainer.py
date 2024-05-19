@@ -352,25 +352,30 @@ class Trainer:
         metrics = EmptyMetrics()
         metrics.reset(len(data_loader))
 
-        features_all = []
-        predicts_all = []
+        predicts_collected = {}
 
-        for i, batch in enumerate(data_loader):
-            batch = self.to_device(batch)
+        with torch.no_grad():
+            for i, batch in enumerate(data_loader):
+                batch = self.to_device(batch)
 
-            features, predicts = self.model.predict(batch)
-            features_all.extend(features.cpu())
-            predicts_all.extend(predicts.cpu())
+                if self.ema_model is not None:
+                    predicts = model.module.predict(batch)
+                else:
+                    predicts = model.predict(batch)
 
-            metrics.update(None, None)  # 
+                for k, v in predicts.items():
+                    if k not in predicts_collected:
+                        predicts_collected[k] = []
+                    predicts_collected[k].extend(v.cpu())
 
-            if i % self.print_freq == 0:
-                print(f'Predict [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
+                metrics.update(None, None)  # 
 
-            if proof_of_concept:
-                break
+                if i % self.print_freq == 0:
+                    print(f'Predict [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
+
+                if proof_of_concept:
+                    break
 
         print(f'Predict [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
-
-        return features_all, predicts_all
+        return predicts_collected
         
