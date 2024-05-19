@@ -95,7 +95,9 @@ class VisCodeModel(nn.Module):
         for t in range(max(lengths)):
             batch_size_t = sum([l > t for l in lengths])
 
-            vis = self.vis_model(images_sort[:batch_size_t, t, :, :, :]).squeeze()
+            vis = self.vis_model(images_sort[:batch_size_t, t, :, :, :])
+            print(vis.shape)
+            vis = vis.squeeze()
 
             h, c = self.lstm_cell(torch.cat([x_sort[:batch_size_t, t, :], vis, x_prev[:batch_size_t, :]], dim=1), 
                                   (h[:batch_size_t], c[:batch_size_t]))
