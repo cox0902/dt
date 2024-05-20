@@ -61,15 +61,23 @@ class VisModel(nn.Module):
 
 class VisCodeModel(nn.Module):
 
-    def __init__(self, vis_model: VisModel, vocab_size: int, max_len: int, embedding_size: int, hidden_size: int, 
-                 dropout: float = 0.):
+    def __init__(self, vis_model: VisModel, vis_mode: Literal["f", "p"], vocab_size: int, max_len: int, 
+                 embedding_size: int, hidden_size: int, dropout: float = 0.):
         super(VisCodeModel, self).__init__()
         self.hidden_size = hidden_size
         self.max_len = max_len
 
-        self.vis_model = nn.Sequential(*list(vis_model.resnet.children())[:-1])
+        self.vis_mode = vis_mode
+        if vis_mode == "f":
+            self.vis_model = nn.Sequential(*list(vis_model.resnet.children())[:-1])
+            self.lstm_cell = nn.LSTMCell(embedding_size + 2048 + 1, hidden_size, bias=True)
+        elif vis_mode == "p":
+            self.vis_model = vis_model.resnet
+            self.lstm_cell = nn.LSTMCell(embedding_size + 1 + 1, hidden_size, bias=True)
+        else:
+            assert False
+        
         self.embedding = nn.Embedding(vocab_size, embedding_size, padding_idx=0)
-        self.lstm_cell = nn.LSTMCell(embedding_size + 2048 + 1, hidden_size, bias=True)
         self.dropout = nn.Dropout(p=dropout)
         self.fc = nn.Linear(hidden_size, 1)
 
@@ -97,7 +105,8 @@ class VisCodeModel(nn.Module):
 
             vis = self.vis_model(images_sort[:batch_size_t, t, :, :, :])
             # print(vis.shape)
-            vis = torch.squeeze(vis, dim=(2, 3))
+            if self.vis_mode == "f":
+                vis = torch.squeeze(vis, dim=(2, 3))
 
             h, c = self.lstm_cell(torch.cat([x_sort[:batch_size_t, t, :], vis, x_prev[:batch_size_t, :]], dim=1), 
                                   (h[:batch_size_t], c[:batch_size_t]))

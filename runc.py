@@ -22,6 +22,7 @@ def get_args_parser() -> argparse.ArgumentParser:
     parser.add_argument("--proof-of-concept", action="store_true")
     parser.add_argument("--seed", type=int)
 
+    parser.add_argument("--mode", type=str)
     parser.add_argument("--model", type=str)
     parser.add_argument("--load-weight", action="store_true")
     parser.add_argument("--copy-weight", action="store_true")
@@ -81,7 +82,7 @@ def main(args):
         vis_trainer = Trainer.load_checkpoint(args.model)
         vis_model = vis_trainer.get_inner_model()
 
-    model = VisCodeModel(vis_model, 86, train_set.max_len, embedding_size=args.embedding_size, hidden_size=args.hidden_size)
+    model = VisCodeModel(vis_model, args.mode, 86, train_set.max_len, embedding_size=args.embedding_size, hidden_size=args.hidden_size)
 
     criterion = nn.BCEWithLogitsLoss()
 
