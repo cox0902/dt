@@ -42,8 +42,8 @@ def main(args):
     print("=" * 100)
     trainer = Trainer.load_checkpoint(args.model)
 
-    print("=" * 100)
     if args.fold is not None:
+        print("=" * 100)
         test_loader = DataLoader(GuiVisDataset(args.data_path, args.data_name, "test", args.fold, transform=GuiVisPresetEval()), 
                                  batch_size=args.batch_size, shuffle=False, pin_memory=True,
                                  num_workers=args.workers)

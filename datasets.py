@@ -66,9 +66,10 @@ class GuiVisDataset(Dataset):
 
         if self.masks is None:
             mask = Image.new("L", (1440, 2560), 0)
-            ImageDraw.Draw(mask).rectangle(self.rects[self.__idx(i)], 255)
+            ImageDraw.Draw(mask).rectangle(self.rects[self.__idx(i)].tolist(), 255)
             mask = mask.resize((256, 256), Image.NEAREST)
             img_mask = torch.FloatTensor(np.asarray(mask) / 255.)
+            img_mask = img_mask.unsqueeze(0)
         else:
             img_mask = torch.FloatTensor(self.masks[self.__idx(i)] / 255.)
         # img_rect = torch.FloatTensor(self.rects[self.__idx(i)])
