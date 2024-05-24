@@ -94,8 +94,9 @@ class Metrics:
         agg_metrics = []
         if torch.cuda.is_available():
             MB = 1024.0 * 1024.0
-            ma = torch.cuda.max_memory_allocated()
-            mr = torch.cuda.max_memory_reserved()
+            ma, mr = torch.cuda.mem_get_info()
+            # ma = torch.cuda.max_memory_allocated()
+            # mr = torch.cuda.max_memory_reserved()
             agg_metrics.append(f"{int(ma / MB)} MB / {int(mr / MB)} MB")
         if show_batch_time:
             str_inline = f"ETA {_tf(self.batch_time.sum)}"
