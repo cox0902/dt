@@ -22,6 +22,7 @@ def get_args_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", type=str)
 
     parser.add_argument("--data-path", type=str)
+    parser.add_argument("--data-name", default="images.hdf5", type=str)
     parser.add_argument("--fold", type=int)
 
     parser.add_argument("-b", "--batch-size", default=128, type=int)
@@ -43,7 +44,7 @@ def main(args):
 
     print("=" * 100)
     if args.fold is not None:
-        test_loader = DataLoader(GuiVisDataset(args.data_path, "test", args.fold, transform=GuiVisPresetEval()), 
+        test_loader = DataLoader(GuiVisDataset(args.data_path, args.data_name, "test", args.fold, transform=GuiVisPresetEval()), 
                                  batch_size=args.batch_size, shuffle=False, pin_memory=True,
                                  num_workers=args.workers)
         _ = trainer.test(data_loader=test_loader, metrics=SimpleBinaryMetrics(), proof_of_concept=args.proof_of_concept)
@@ -54,7 +55,7 @@ def main(args):
         if not save_path.exists():
             save_path.mkdir(parents=True)
 
-        data_loader = DataLoader(GuiVisDataset(args.data_path, None, None, transform=GuiVisPresetEval()), 
+        data_loader = DataLoader(GuiVisDataset(args.data_path, args.data_name, None, None, transform=GuiVisPresetEval()), 
                                  batch_size=args.batch_size, shuffle=False, pin_memory=True,
                                  num_workers=args.workers)
         

@@ -14,7 +14,8 @@ from .helpers import plot
 
 class GuiVisDataset(Dataset):
 
-    def __init__(self, data_path: str, set_name: Optional[Literal["train", "valid", "test"]] = None, 
+    def __init__(self, data_path: str, data_name: Optional[str] = "images.hdf5", 
+                 set_name: Optional[Literal["train", "valid", "test"]] = None, 
                  fold: Optional[int] = None, transform = None, label_smooth: bool = False):
         self.set_name = set_name
         self.fold_num = fold
@@ -26,7 +27,7 @@ class GuiVisDataset(Dataset):
         else:
             assert False
         
-        self.h = h5py.File(Path(data_path) / "images.hdf5", "r")
+        self.h = h5py.File(Path(data_path) / data_name, "r")
         self.images = self.h["images"]
         # # self.ricoid = self.h["ricoid"]
         if "masks" not in self.h:
