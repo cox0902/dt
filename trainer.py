@@ -257,7 +257,8 @@ class Trainer:
 
         return metrics.compute(hypotheses, references)
     
-    def test(self, data_loader: DataLoader, metrics: Metrics, hook: Optional[str] = None, proof_of_concept: bool = False):
+    def test(self, data_loader: DataLoader, metrics: Metrics, hook: Optional[str] = None, proof_of_concept: bool = False,
+             return_logits: bool = False):
         model = self.get_model()
         model.eval()
         metrics.reset(len(data_loader))
@@ -298,7 +299,8 @@ class Trainer:
 
                 references.extend(targets.squeeze())
                 hypotheses.extend(predicts.squeeze())
-                hypologits.extend(logits.squeeze())
+                if return_logits:
+                    hypologits.extend(logits.squeeze())
 
                 if proof_of_concept:
                     break
@@ -314,8 +316,13 @@ class Trainer:
             metrics.compute(hypotheses, references)
 
         if hook is None:
-            return hypotheses, references, torch.Tensor(hypologits)
-        return hypotheses, references, torch.Tensor(hypologits), np.array(activations)
+            if return_logits:
+                return hypotheses, references, torch.Tensor(hypologits), None
+            else:
+                return hypotheses, references, None, None
+        if return_logits:
+            return hypotheses, references, torch.Tensor(hypologits), np.array(activations)
+        return hypotheses, references, None, np.array(activations)
 
     def fit(self, epochs: int, train_loader: DataLoader, valid_loader: DataLoader, metrics: Metrics,
             save_checkpoint: bool = True, proof_of_concept: bool = False):

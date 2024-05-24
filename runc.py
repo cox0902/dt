@@ -1,6 +1,7 @@
 from typing import *
 import argparse
 
+import torch
 from torch import nn
 from torch import optim
 from torch.utils.data import DataLoader, WeightedRandomSampler
@@ -31,6 +32,7 @@ def get_args_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--opt", type=str)
     parser.add_argument("--lr", default=1e-3, type=float)
+    parser.add_argument("--pos-weight", type=float)
 
     parser.add_argument("--vis-data-path", type=str)
     parser.add_argument("--code-data-path", type=str)
@@ -84,12 +86,17 @@ def main(args):
 
     model = VisCodeModel(vis_model, args.mode, 86, train_set.max_len, embedding_size=args.embedding_size, hidden_size=args.hidden_size)
 
-    criterion = nn.BCEWithLogitsLoss()
+    if args.pos_weight is None:
+        criterion = nn.BCEWithLogitsLoss()
+    else:
+        criterion = nn.BCEWithLogitsLoss(pos_weight=torch.Tensor([args.pos_weight]))
 
     if args.opt == "adam":
         optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    else:
+    elif args.opt == "adamw":
         optimizer = optim.AdamW(model.parameters(), lr=args.lr)
+    else:
+        assert False
 
     trainer = Trainer(model=model, criterion=criterion, optimizer=optimizer, generator=generator,
                       is_ema=args.ema, use_amp=args.amp)

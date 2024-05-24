@@ -121,7 +121,8 @@ class GuiVisPresetTrain:
                 img, tv_tensors.Mask(img_mask), 
                 tv_tensors.BoundingBoxes(img_rect, format="XYXY", canvas_size=(256, 256)))
         elif img_mask is not None:
-            return self.transforms_all(img, tv_tensors.Mask(img_mask)), None
+            img, img_mask = self.transforms_all(img, tv_tensors.Mask(img_mask))
+            return img, img_mask, None
         elif img_rect is not None:
             img, img_rect = self.transforms_all(
                 img, tv_tensors.BoundingBoxes(img_rect, format="XYXY", canvas_size=(256, 256)))

@@ -83,6 +83,8 @@ class Metrics:
         self.start_time = time.perf_counter()
 
     def compute(self, hypotheses, references) -> float:
+        if self.scorer is None:
+            return 0.0
         scorer: Metric = self.scorer()
         scorer.update(hypotheses, references)
         return scorer.compute()

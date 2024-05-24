@@ -4,6 +4,7 @@ import json
 import h5py
 import numpy as np
 from pathlib import Path
+from PIL import Image, ImageDraw
 
 import torch
 from torch.utils.data import Dataset
@@ -28,8 +29,13 @@ class GuiVisDataset(Dataset):
         self.h = h5py.File(Path(data_path) / "images.hdf5", "r")
         self.images = self.h["images"]
         # # self.ricoid = self.h["ricoid"]
-        self.masks = self.h["masks"]
-        self.rects = self.h["rects"]
+        if "masks" not in self.h:
+            assert set_name is None  # TODO:
+            self.masks = None
+            self.rects = self.h["rects"]
+        else:
+            self.masks = self.h["masks"]
+        # self.rects = self.h["rects"]
         self.labels = self.h["labels"][self.split] if self.split is not None else self.h["labels"]
 
         self.transform = transform
@@ -56,12 +62,18 @@ class GuiVisDataset(Dataset):
         img_idx = self.labels[i, 0]
         label = self.labels[i, 2]
         img = torch.from_numpy(self.images[img_idx])
-        img_mask = torch.FloatTensor(self.masks[self.__idx(i)] / 255.)
-        img_rect = torch.FloatTensor(self.rects[self.__idx(i)])
-        # img = torch.FloatTensor(self.images[img_idx] / 255.)
-        # img_mask = torch.FloatTensor(self.masks[i] / 255.)
+
+        if self.masks is None:
+            mask = Image.new("L", (1440, 2560), 0)
+            ImageDraw.Draw(mask).rectangle(self.rects[self.__idx(i)], 255)
+            mask = mask.resize((256, 256), Image.NEAREST)
+            img_mask = torch.FloatTensor(np.asarray(mask) / 255.)
+        else:
+            img_mask = torch.FloatTensor(self.masks[self.__idx(i)] / 255.)
+        # img_rect = torch.FloatTensor(self.rects[self.__idx(i)])
         if self.transform is not None:
-            img, img_mask, _ = self.transform(img, img_mask, img_rect)
+            img, img_mask, _ = self.transform(img, img_mask)
+            # img, img_mask, _ = self.transform(img, img_mask, img_rect)
         img = torch.cat([img, img_mask], dim=0)
         # if self.label_smooth:
         #     label = torch.FloatTensor([np.clip(label, 0.1, 0.9)])
