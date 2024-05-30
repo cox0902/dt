@@ -22,6 +22,11 @@ class VisModel(nn.Module):
                 resnet = torchvision.models.resnext50_32x4d(weights=torchvision.models.ResNeXt50_32X4D_Weights.DEFAULT)
             else:
                 resnet = torchvision.models.resnext50_32x4d()
+        elif model == "convnext":
+            if load_weight:
+                resnet = torchvision.models.convnext_base(weights=torchvision.models.ConvNeXt_Base_Weights.DEFAULT)
+            else:
+                resnet = torchvision.models.convnext_base()
         elif model.startswith("clip."):
             assert load_weight
             model_cfg = model.split(".")
