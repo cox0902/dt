@@ -3,14 +3,14 @@ from typing import *
 import torch
 from torch import nn
 import torchvision
+import open_clip
 
 
 class VisModel(nn.Module):
 
-    def __init__(self, model: Literal["resnet", "resnext"] = "resnet", load_weight: bool = False, copy_weight: bool = False,  
-                 use_logits: bool = False):
+    def __init__(self, model: Literal["resnet", "resnext", "convnext", "clip.*.*"] = "resnet", 
+                 load_weight: bool = False, copy_weight: bool = False):
         super(VisModel, self).__init__()
-        self.use_logits = use_logits
 
         if model == "resnet":
             if load_weight:
@@ -22,41 +22,59 @@ class VisModel(nn.Module):
                 resnet = torchvision.models.resnext50_32x4d(weights=torchvision.models.ResNeXt50_32X4D_Weights.DEFAULT)
             else:
                 resnet = torchvision.models.resnext50_32x4d()
+        elif model.startswith("clip."):
+            assert load_weight
+            model_cfg = model.split(".")
+            assert len(model_cfg) == 3
+            resnet = open_clip.create_model(model_name=model_cfg[1], pretrained=model_cfg[2]).visual
         else:
             assert False, model
         
-        old_conv1 = resnet.conv1
+        if model == "convnext":
+            old_conv1 = resnet.features[0][0]
+        else:
+            old_conv1 = resnet.conv1
+        bias = old_conv1.bias is not None
         new_conv1 = nn.Conv2d(in_channels=4, out_channels=old_conv1.out_channels, kernel_size=old_conv1.kernel_size, 
-                              stride=old_conv1.stride, padding=old_conv1.padding, bias=old_conv1.bias)
-
+                              stride=old_conv1.stride, padding=old_conv1.padding, bias=bias)
         if load_weight:
             new_conv1.weight.data[:, :old_conv1.in_channels, :, :] = old_conv1.weight.data.clone()
+            if bias:
+                new_conv1.bias.data = old_conv1.bias.clone()
             if copy_weight:
                 new_conv1.weight.data[:, old_conv1.in_channels:, :, :] = old_conv1.weight.data.mean(dim=1, keepdim=True)
         else:
             assert not copy_weight
+        if model == "convnext":
+            resnet.features[0][0] = new_conv1
+        else:
+            resnet.conv1 = new_conv1
 
-        resnet.conv1 = new_conv1
-        sequential = [
-            nn.Linear(in_features=2048, out_features=1),
-        ]
-        if not use_logits:
-            sequential.append(nn.Sigmoid())
-        resnet.fc = nn.Sequential(*sequential)
-        self.resnet = resnet
+        if model in ["resnet", "resnext"]:
+            resnet.fc = nn.Linear(in_features=2048, out_features=1)
+            self.resnet = resnet
+        elif model == "":
+            resnet.classifier[2] = nn.Linear(in_features=1024, out_features=1)
+            self.resnet = resnet
+        elif model.startswith("clip."):
+            sequential = [
+                resnet,
+                nn.Linear(in_features=1024, out_features=1),
+            ]
+            self.resnet = nn.Sequential(*sequential)
         
     def forward(self, batch):
         logits = self.resnet(batch["image"])
         predicts = torch.sigmoid(logits) if self.use_logits else logits
         return logits, predicts, batch["target"]
 
-    def predict(self, batch):
-        with torch.no_grad():
-            fextractor = nn.Sequential(*list(self.resnet.children())[:-1])
-            classifier = self.resnet.fc
-            features = fextractor(batch["image"]).squeeze()
-            predicts = torch.sigmoid(classifier(features))
-        return features, predicts
+    # def predict(self, batch):
+    #     with torch.no_grad():
+    #         fextractor = nn.Sequential(*list(self.resnet.children())[:-1])
+    #         classifier = self.resnet.fc
+    #         features = fextractor(batch["image"]).squeeze()
+    #         predicts = torch.sigmoid(classifier(features))
+    #     return features, predicts
 
 
 class VisCodeModel(nn.Module):

@@ -357,37 +357,37 @@ class Trainer:
             if proof_of_concept:
                 break
 
-    def predict(self, data_loader: DataLoader, proof_of_concept: bool = False):
-        model = self.get_model()
-        model.eval()
+    # def predict(self, data_loader: DataLoader, proof_of_concept: bool = False):
+    #     model = self.get_model()
+    #     model.eval()
 
-        metrics = EmptyMetrics()
-        metrics.reset(len(data_loader))
+    #     metrics = EmptyMetrics()
+    #     metrics.reset(len(data_loader))
 
-        predicts_collected = {}
+    #     predicts_collected = {}
 
-        with torch.no_grad():
-            for i, batch in enumerate(data_loader):
-                batch = self.to_device(batch)
+    #     with torch.no_grad():
+    #         for i, batch in enumerate(data_loader):
+    #             batch = self.to_device(batch)
 
-                if self.ema_model is not None:
-                    predicts = model.module.predict(batch)
-                else:
-                    predicts = model.predict(batch)
+    #             if self.ema_model is not None:
+    #                 predicts = model.module.predict(batch)
+    #             else:
+    #                 predicts = model.predict(batch)
 
-                for k, v in predicts.items():
-                    if k not in predicts_collected:
-                        predicts_collected[k] = []
-                    predicts_collected[k].extend(v.cpu())
+    #             for k, v in predicts.items():
+    #                 if k not in predicts_collected:
+    #                     predicts_collected[k] = []
+    #                 predicts_collected[k].extend(v.cpu())
 
-                metrics.update(None, None)  # 
+    #             metrics.update(None, None)  # 
 
-                if i % self.print_freq == 0:
-                    print(f'Predict [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
+    #             if i % self.print_freq == 0:
+    #                 print(f'Predict [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
 
-                if proof_of_concept:
-                    break
+    #             if proof_of_concept:
+    #                 break
 
-        print(f'Predict [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
-        return predicts_collected
+    #     print(f'Predict [{i + 1}/{len(data_loader)}] {metrics.format(show_scores=False, show_loss=False)}')
+    #     return predicts_collected
         

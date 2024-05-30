@@ -84,14 +84,23 @@ class TrivialAugmentGui(T.TrivialAugmentWide):
     }
 
 
+def get_model_normalize_cfg(model_name: str) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]:
+    if model_name in ["resnet", "resnext", "convnext"]:
+        return (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
+    elif model_name.startswith("clip."):
+        return (0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)
+    assert False
+
+
 class GuiVisPresetTrain:
     def __init__(
             self,
-            mean = (0.485, 0.456, 0.406),
-            std = (0.229, 0.224, 0.225),
+            model_name: str,
             use_ta: bool = False,
             hflip_prob = 0
     ):
+        mean, std = get_model_normalize_cfg(model_name)
+
         transforms_img = []
         if use_ta:
             transforms_img.append(TrivialAugmentGui())
@@ -131,11 +140,8 @@ class GuiVisPresetTrain:
 
 
 class GuiVisPresetEval:
-    def __init__(
-            self,
-            mean = (0.485, 0.456, 0.406),
-            std = (0.229, 0.224, 0.225),
-    ):
+    def __init__(self, model_name: str):
+        mean, std = get_model_normalize_cfg(model_name)
         self.transforms = T.Compose([
             T.ToDtype(torch.float, scale=True),
             T.Normalize(mean=mean, std=std),
