@@ -50,8 +50,7 @@ def main(args):
 
     generator, seed_worker = seed_everything(args.seed)
 
-    model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight, 
-                     use_logits=True)
+    model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight)
     criterion = nn.BCEWithLogitsLoss()
 
     if args.opt == "adam":
