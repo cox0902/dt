@@ -58,7 +58,7 @@ class VisModel(nn.Module):
         if model in ["resnet", "resnext"]:
             resnet.fc = nn.Linear(in_features=2048, out_features=1)
             self.resnet = resnet
-        elif model == "":
+        elif model == "convnext":
             resnet.classifier[2] = nn.Linear(in_features=1024, out_features=1)
             self.resnet = resnet
         elif model.startswith("clip."):
