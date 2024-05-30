@@ -70,7 +70,7 @@ class VisModel(nn.Module):
         
     def forward(self, batch):
         logits = self.resnet(batch["image"])
-        predicts = torch.sigmoid(logits) if self.use_logits else logits
+        predicts = torch.sigmoid(logits)
         return logits, predicts, batch["target"]
 
     # def predict(self, batch):
