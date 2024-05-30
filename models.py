@@ -32,6 +32,7 @@ class VisModel(nn.Module):
             model_cfg = model.split(".")
             assert len(model_cfg) == 3
             resnet = open_clip.create_model(model_name=model_cfg[1], pretrained=model_cfg[2]).visual
+            resnet.attnpool = nn.AdaptiveAvgPool2d((1, 1))
         else:
             assert False, model
         
@@ -64,7 +65,8 @@ class VisModel(nn.Module):
         elif model.startswith("clip."):
             sequential = [
                 resnet,
-                nn.Linear(in_features=1024, out_features=1),
+                nn.Flatten(),
+                nn.Linear(in_features=2048, out_features=1),
             ]
             self.resnet = nn.Sequential(*sequential)
         
