@@ -59,7 +59,7 @@ def main(args):
         optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
     train_set = GuiVisDataset(args.data_path, "train", args.fold, 
-                              transform=GuiVisPresetTrain(use_ta=args.use_ta),
+                              transform=GuiVisPresetTrain(model_name=args.model, use_ta=args.use_ta),
                               label_smooth=args.label_smooth)
     if args.resample == "rng":
         train_set.resample(mode="rnd")
@@ -74,7 +74,7 @@ def main(args):
         train_loader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, pin_memory=True, 
                                   num_workers=args.workers, worker_init_fn=seed_worker, generator=generator)
         
-    valid_loader = DataLoader(GuiVisDataset(args.data_path, "valid", args.fold, transform=GuiVisPresetEval()), 
+    valid_loader = DataLoader(GuiVisDataset(args.data_path, "valid", args.fold, transform=GuiVisPresetEval(model_name=args.model)), 
                               batch_size=args.batch_size, shuffle=True, pin_memory=True)
     
     trainer = Trainer(model=model, criterion=criterion, optimizer=optimizer, generator=generator,
@@ -83,7 +83,7 @@ def main(args):
                 proof_of_concept=args.proof_of_concept)
     
     print("=" * 100)
-    test_loader = DataLoader(GuiVisDataset(args.data_path, "test", args.fold, transform=GuiVisPresetEval()), 
+    test_loader = DataLoader(GuiVisDataset(args.data_path, "test", args.fold, transform=GuiVisPresetEval(model_name=args.model)), 
                              batch_size=args.batch_size, shuffle=False)
                          
     trainer = Trainer.load_checkpoint("./BEST.pth.tar")
