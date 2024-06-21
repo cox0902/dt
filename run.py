@@ -23,7 +23,6 @@ def get_args_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int)
 
     parser.add_argument("--model", type=str)
-    parser.add_argument("--from-weight", type=str)
     parser.add_argument("--load-weight", action="store_true")
     parser.add_argument("--copy-weight", action="store_true")
 
@@ -52,10 +51,7 @@ def main(args):
 
     generator, seed_worker = seed_everything(args.seed)
 
-    if args.from_weight is not None:
-        model = Trainer.load_checkpoint(args.from_weight).get_inner_model()
-    else:
-        model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight)
+    model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight)
     criterion = nn.BCEWithLogitsLoss()
 
     if args.opt == "adam":

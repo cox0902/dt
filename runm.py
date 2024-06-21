@@ -52,7 +52,10 @@ def main(args):
 
     generator, seed_worker = seed_everything(args.seed)
 
-    model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight)
+    if args.model in ["resnet", "resnext", "convnext"] or str(args.model).startswith("clip."):
+        model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight)
+    else:
+        model = Trainer.load_checkpoint(args.model).get_inner_model()
     criterion = nn.BCEWithLogitsLoss()
 
     if args.opt == "adam":
