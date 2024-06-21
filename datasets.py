@@ -247,7 +247,7 @@ class GuiVisDataset(Dataset):
             msk_index_neg = msk_indices_neg[msk_index_neg]
 
             img_mask = torch.FloatTensor(self.masks[self.__idx(msk_index_neg)] / 255.)
-            img_rect = torch.FloatTensor(self.rects[self.__idx(msk_index_neg)])
+            # img_rect = torch.FloatTensor(self.rects[self.__idx(msk_index_neg)])
         else:
             assert False
 
@@ -262,7 +262,9 @@ class GuiVisDataset(Dataset):
             label = torch.FloatTensor([0])
         
         if self.transform is not None:
-            img, img_mask, _ = self.transform(img, img_mask, img_rect)
+            # img, img_mask, _ = self.transform(img, img_mask, img_rect)
+            img, img_mask, _ = self.transform(img, img_mask)
+
         img = torch.cat([img, img_mask], dim=0)
         return { 
             "image": img, 
