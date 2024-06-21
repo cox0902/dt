@@ -34,6 +34,7 @@ def get_args_parser() -> argparse.ArgumentParser:
     parser.add_argument("--use-ta", action="store_true")
     parser.add_argument("--label-smooth", action="store_true")
     parser.add_argument("--resample", type=str)
+    parser.add_argument("--k", default=10, type=int)
 
     parser.add_argument("-b", "--batch-size", default=64, type=int)
     parser.add_argument("-j", "--workers", default=4, type=int)
@@ -64,7 +65,7 @@ def main(args):
     if args.resample == "rng":
         train_set.resample(mode="rnd")
     elif args.resample == "neg":
-        train_set.resample(mode="neg")
+        train_set.resample(mode="neg", k=args.k)
 
     if args.resample == "weight":
         train_loader = DataLoader(train_set, batch_size=args.batch_size, pin_memory=True, 
