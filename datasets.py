@@ -56,6 +56,20 @@ class GuiMatDataset(Dataset):
                 count_neg += 1
         print(f" Labels Size: {count_neg} {count_pos}")
 
+    @property
+    def sample_weights(self):
+        count_neg, count_pos = 0, 0
+        labels = []
+        for idx in self.indexs:
+            if all(self.labels[self.labels[:, 0] == idx, 2]):
+                labels.append(1)
+                count_pos += 1
+            else:
+                labels.append(0)
+                count_neg += 1
+        labels_weights = 1.0 / np.array([count_neg, count_pos])
+        return labels_weights[labels]
+
     def __getitem__(self, i: int) -> Dict:
         img_idx = self.indexs[i]
         label = 1 if all(self.labels[self.labels[:, 0] == img_idx, 2]) else 0
