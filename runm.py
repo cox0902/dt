@@ -23,6 +23,7 @@ def get_args_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int)
 
     parser.add_argument("--model", type=str)
+    parser.add_argument("--from-weight", type=str)
     parser.add_argument("--load-weight", action="store_true")
     parser.add_argument("--copy-weight", action="store_true")
 
@@ -52,10 +53,10 @@ def main(args):
 
     generator, seed_worker = seed_everything(args.seed)
 
-    if args.model in ["resnet", "resnext", "convnext"] or str(args.model).startswith("clip."):
+    if args.from_weight is None:
         model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight)
     else:
-        model = Trainer.load_checkpoint(args.model).get_inner_model()
+        model = Trainer.load_checkpoint(args.from_weight).get_inner_model()
     criterion = nn.BCEWithLogitsLoss()
 
     if args.opt == "adam":
