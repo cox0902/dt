@@ -341,18 +341,19 @@ class Trainer:
 
             recent_score = self.valid(data_loader=valid_loader, metrics=metrics, proof_of_concept=proof_of_concept)
             
-            is_best = recent_score > best_score
-            best_score = max(recent_score, best_score)
-            if not is_best:
-                epochs_since_improvement += 1
-                print(f"\nEpochs since last improvement: {epochs_since_improvement} ({best_score})\n")  # [OK]
-            else:
-                epochs_since_improvement = 0
+            if epoch >= self.warmup_epochs:
+                is_best = recent_score > best_score
+                best_score = max(recent_score, best_score)
+                if not is_best:
+                    epochs_since_improvement += 1
+                    print(f"\nEpochs since last improvement: {epochs_since_improvement} ({best_score})\n")  # [OK]
+                else:
+                    epochs_since_improvement = 0
 
-            # save checkpoint
-            self.save_checkpoint(epoch=epoch, epochs_since_improvement=epochs_since_improvement, 
-                                 score=recent_score, is_best=is_best, 
-                                 save_checkpoint=save_checkpoint)
+                # save checkpoint
+                self.save_checkpoint(epoch=epoch, epochs_since_improvement=epochs_since_improvement, 
+                                    score=recent_score, is_best=is_best, 
+                                    save_checkpoint=save_checkpoint)
             
             if proof_of_concept:
                 break
