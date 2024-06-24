@@ -85,7 +85,7 @@ class GuiMatDataset(Dataset):
         mask = Image.new("RGB", (img.size(1), img.size(2)), 0)
         mask_draw = ImageDraw.Draw(mask, "RGBA")
         for rect in rects:
-            mask_draw.rectangle(rect.tolist(), fill=self.fill, outline=self.outline, width=2)
+            mask_draw.rectangle(rect.tolist(), fill=self.fill, outline=self.outline, width=1)
         mask = mask.convert("L")
 
         img_mask = torch.FloatTensor(np.asarray(mask) / 255.)

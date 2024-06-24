@@ -69,7 +69,7 @@ def main(args):
         fill = (255, 255, 255, fill)
     outline = args.outline
     if outline is not None:
-        outline = (255, 255, 255, outline)
+        outline = (outline, outline, outline, 255)
 
     train_set = GuiMatDataset(args.data_path, set_name="train", fold=args.fold, 
                               transform=GuiVisPresetTrain(model_name=args.model, use_ta=args.use_ta),
