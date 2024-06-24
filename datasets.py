@@ -109,7 +109,91 @@ class GuiMatDataset(Dataset):
               (data["image"][:-1], { "masks": data["image"][-1] })],
              [(f"{self.h['ricoid'][self.indexs[i]]}", "mask", f"{data['target'].item():.4f}")],
              figshow_kwargs={ "figsize": (12, 4) })
-         
+
+
+class GuiMatMaskDataset(Dataset):
+
+    def __init__(self, mask_path: str, data_path: str, data_name: Optional[str] = "images.hdf5", 
+                 set_name: Optional[Literal["train", "valid", "test"]] = None, 
+                 fold: Optional[int] = None, transform = None):
+        self.set_name = set_name
+        self.fold_num = fold
+
+        if set_name is not None and fold is not None:
+            self.split = np.load(Path(data_path) / f"split_fold_{fold}.npz")[set_name]
+        elif set_name is None and fold is None:
+            self.split = None
+        else:
+            assert False
+        
+        self.h = h5py.File(Path(data_path) / data_name, "r")
+        self.images = self.h["images"]
+        self.labels = self.h["labels"][self.split] if self.split is not None else self.h["labels"]
+        self.indexs = np.unique(self.labels[:, 0])
+
+        self.m = h5py.File(mask_path, "r")
+        self.masks = self.m["masks"]
+
+        self.transform = transform
+
+
+    def __len__(self) -> int:
+        return len(self.indexs)
+    
+    def summary(self):
+        if self.split is not None:
+            print(f"Dataset Name: {self.set_name}#{self.fold_num}")
+        print(f'Dataset Time: {self.h.attrs["create_time"]}')
+        print(f"Dataset Size: {len(self)}")
+        count_neg, count_pos = 0, 0
+        for idx in self.indexs:
+            if all(self.labels[self.labels[:, 0] == idx, 2]):
+                count_pos += 1
+            else:
+                count_neg += 1
+        print(f" Labels Size: {count_neg} {count_pos}")
+
+    @property
+    def sample_weights(self):
+        count_neg, count_pos = 0, 0
+        labels = []
+        for idx in self.indexs:
+            if all(self.labels[self.labels[:, 0] == idx, 2]):
+                labels.append(1)
+                count_pos += 1
+            else:
+                labels.append(0)
+                count_neg += 1
+        labels_weights = 1.0 / np.array([count_neg, count_pos])
+        return labels_weights[labels]
+
+    def __getitem__(self, i: int) -> Dict:
+        img_idx = self.indexs[i]
+        label = 1 if all(self.labels[self.labels[:, 0] == img_idx, 2]) else 0
+        img = torch.from_numpy(self.images[img_idx])
+
+        mask = self.masks[img_idx]
+
+        img_mask = torch.FloatTensor(np.asarray(mask) / 255.)
+
+        if self.transform is not None:
+            img, _, _ = self.transform(img)
+        img = torch.cat([img, img_mask], dim=0)
+
+        label = torch.FloatTensor([label])
+        return {
+            "image": img, 
+            "target": label
+        }
+    
+    def vis(self, i: Optional[int] = None):
+        if i is None:
+            i = np.random.randint(len(self))
+        data = self[i]
+        plot([(data["image"][:-2], {}), (data["image"][-2], {}), (data["image"][-1], {})],
+             [(f"{self.h['ricoid'][self.indexs[i]]}", "mask t", "mask nt")],
+             figshow_kwargs={ "figsize": (12, 4) })
+
 
 class GuiVisDataset(Dataset):
 
