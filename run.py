@@ -55,6 +55,7 @@ def main(args):
         trainer = Trainer.load_checkpoint(args.cont)
         assert trainer.seed == args.seed
         generator, seed_worker = seed_everything(args.seed, trainer.state)
+        trainer.generator = generator
     else:
         generator, seed_worker = seed_everything(args.seed)
 
