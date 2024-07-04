@@ -19,6 +19,8 @@ from dt.models import VisModel
 def get_args_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--cont", type=str)
+
     parser.add_argument("--proof-of-concept", action="store_true")
     parser.add_argument("--seed", type=int)
 
@@ -49,15 +51,20 @@ def get_args_parser() -> argparse.ArgumentParser:
 def main(args):
     print(args)
 
-    generator, seed_worker = seed_everything(args.seed)
-
-    model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight)
-    criterion = nn.BCEWithLogitsLoss()
-
-    if args.opt == "adam":
-        optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    if args.cont is not None:
+        trainer = Trainer.load_checkpoint(args.cont)
+        assert trainer.seed == args.seed
+        generator, seed_worker = seed_everything(args.seed, trainer.state)
     else:
-        optimizer = optim.AdamW(model.parameters(), lr=args.lr)
+        generator, seed_worker = seed_everything(args.seed)
+
+        model = VisModel(model=args.model, load_weight=args.load_weight, copy_weight=args.copy_weight)
+        criterion = nn.BCEWithLogitsLoss()
+
+        if args.opt == "adam":
+            optimizer = optim.Adam(model.parameters(), lr=args.lr)
+        else:
+            optimizer = optim.AdamW(model.parameters(), lr=args.lr)
 
     train_set = GuiVisDataset(args.data_path, set_name="train", fold=args.fold, 
                               transform=GuiVisPresetTrain(model_name=args.model, use_ta=args.use_ta),
@@ -78,8 +85,10 @@ def main(args):
     valid_set = GuiVisDataset(args.data_path, set_name="valid", fold=args.fold, transform=GuiVisPresetEval(model_name=args.model))
     valid_loader = DataLoader(valid_set, batch_size=args.batch_size, shuffle=True, pin_memory=True)
     
-    trainer = Trainer(model=model, criterion=criterion, optimizer=optimizer, generator=generator,
-                      is_ema=args.ema, use_amp=args.amp)
+    if args.cont is None:
+        trainer = Trainer(model=model, criterion=criterion, optimizer=optimizer, generator=generator,
+                        is_ema=args.ema, use_amp=args.amp)
+
     trainer.fit(epochs=args.epochs, train_loader=train_loader, valid_loader=valid_loader, metrics=SimpleBinaryMetrics(), 
                 proof_of_concept=args.proof_of_concept)
     
