@@ -87,7 +87,7 @@ def main(args):
 
         train_set = GuiMatDataset(args.data_path, set_name="train", fold=args.fold, 
                                 transform=GuiVisPresetTrain(model_name=args.model, use_ta=args.use_ta),
-                                label_smooth=args.label_smooth, fill=fill, outline=outline)
+                                fill=fill, outline=outline)
     else:
         train_set = GuiMatMaskDataset(args.mask_path, args.data_path, set_name="train", fold=args.fold, 
                                       transform=GuiVisPresetTrain(model_name=args.model, use_ta=args.use_ta))

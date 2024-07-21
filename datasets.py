@@ -16,7 +16,8 @@ class GuiMatDataset(Dataset):
 
     def __init__(self, data_path: str, data_name: Optional[str] = "images.hdf5", 
                  set_name: Optional[Literal["train", "valid", "test"]] = None, 
-                 fold: Optional[int] = None, transform = None, label_smooth: bool = False, 
+                 fold: Optional[int] = None, transform = None, 
+                 full: Optional[bool] = False,
                  fill: Optional[Tuple[int, int, int, int]] = None, 
                  outline: Optional[Tuple[int, int, int, int]] = (255, 255, 255, 255)):
         self.set_name = set_name
@@ -82,14 +83,18 @@ class GuiMatDataset(Dataset):
 
         img = torch.from_numpy(self.images[img_idx])
 
-        mask = Image.new("RGB", (img.size(1), img.size(2)), 0)
-        mask_draw = ImageDraw.Draw(mask, "RGBA")
-        for rect in rects:
-            mask_draw.rectangle(rect.tolist(), fill=self.fill, outline=self.outline, width=1)
-        mask = mask.convert("L")
+        if self.fill is None and self.outline is None:
+            mask = Image.new("RGB", (img.size(1), img.size(2)), 0)
+            mask_draw = ImageDraw.Draw(mask, "RGBA")
+            for rect in rects:
+                mask_draw.rectangle(rect.tolist(), fill=self.fill, outline=self.outline, width=1)
+            mask = mask.convert("L")
 
-        img_mask = torch.FloatTensor(np.asarray(mask) / 255.)
-        img_mask = img_mask.unsqueeze(0)
+            img_mask = torch.FloatTensor(np.asarray(mask) / 255.)
+            img_mask = img_mask.unsqueeze(0)
+        else:
+            img_mask = np.ones((1, img.size(1), img.size(2)), dtype=np.float32)
+            img_mask = torch.FloatTensor(img_mask)
 
         if self.transform is not None:
             img, img_mask, _ = self.transform(img, img_mask)
@@ -212,7 +217,7 @@ class GuiVisDataset(Dataset):
         
         self.h = h5py.File(Path(data_path) / data_name, "r")
         self.images = self.h["images"]
-        # # self.ricoid = self.h["ricoid"]
+        self.ricoid = self.h["ricoid"]
         if "masks" not in self.h:
             assert set_name is None  # TODO:
             self.masks = None
