@@ -19,6 +19,7 @@ def get_args_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--proof-of-concept", action="store_true")
 
+    parser.add_argument("--name", type=str)
     parser.add_argument("--model", type=str)
 
     parser.add_argument("--data-path", type=str)
@@ -47,7 +48,8 @@ def main(args):
 
     if args.fold is not None:
         print("=" * 100)
-        test_loader = DataLoader(GuiVisDataset(args.data_path, args.data_name, "test", args.fold, transform=GuiVisPresetEval()), 
+        test_loader = DataLoader(GuiVisDataset(args.data_path, args.data_name, "test", args.fold, 
+                                               transform=GuiVisPresetEval(args.name)), 
                                  batch_size=args.batch_size, shuffle=False, pin_memory=True,
                                  num_workers=args.workers)
         _ = trainer.test(data_loader=test_loader, metrics=metrics, proof_of_concept=args.proof_of_concept)
@@ -58,7 +60,8 @@ def main(args):
         if not save_path.exists():
             save_path.mkdir(parents=True)
 
-        data_loader = DataLoader(GuiVisDataset(args.data_path, args.data_name, None, None, transform=GuiVisPresetEval()), 
+        data_loader = DataLoader(GuiVisDataset(args.data_path, args.data_name, None, None, 
+                                               transform=GuiVisPresetEval(args.name)), 
                                  batch_size=args.batch_size, shuffle=False, pin_memory=True,
                                  num_workers=args.workers)
         
