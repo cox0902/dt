@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 # sys.path.append("..")
 
 from dt.trainer import Trainer
-from dt.metrics import SimpleBinaryMetrics
+from dt.metrics import SimpleBinaryMetrics, EmptyMetrics
 from dt.datasets import GuiVisDataset
 from dt.transforms import GuiVisPresetEval
 from dt.models import VisModel
@@ -32,12 +32,15 @@ def get_args_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--no-features", action="store_true")
     parser.add_argument("--no-logits", action="store_true")
+    parser.add_argument("--no-metrics", action="store_true")
 
     return parser
 
 
 def main(args):
     print(args)
+
+    metrics = SimpleBinaryMetrics() if not args.no_metrics else EmptyMetrics()
 
     print("=" * 100)
     trainer = Trainer.load_checkpoint(args.model)
@@ -47,7 +50,7 @@ def main(args):
         test_loader = DataLoader(GuiVisDataset(args.data_path, args.data_name, "test", args.fold, transform=GuiVisPresetEval()), 
                                  batch_size=args.batch_size, shuffle=False, pin_memory=True,
                                  num_workers=args.workers)
-        _ = trainer.test(data_loader=test_loader, metrics=SimpleBinaryMetrics(), proof_of_concept=args.proof_of_concept)
+        _ = trainer.test(data_loader=test_loader, metrics=metrics, proof_of_concept=args.proof_of_concept)
 
     if args.save_path:
         print("=" * 100)
@@ -61,7 +64,7 @@ def main(args):
         
         hook = None if args.no_features else "avgpool"
         return_logits = not args.no_logits
-        predicts, _, logits, features = trainer.test(data_loader=data_loader, metrics=SimpleBinaryMetrics(), 
+        predicts, _, logits, features = trainer.test(data_loader=data_loader, metrics=metrics, 
                                                      hook=hook, proof_of_concept=args.proof_of_concept,
                                                      return_logits=return_logits)
         
