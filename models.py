@@ -3,7 +3,7 @@ from typing import *
 import torch
 from torch import nn
 import torchvision
-import open_clip
+# import open_clip
 
 
 class VisModel(nn.Module):
@@ -28,6 +28,7 @@ class VisModel(nn.Module):
             else:
                 resnet = torchvision.models.convnext_base()
         elif model.startswith("clip."):
+            import open_clip
             assert load_weight
             model_cfg = model.split(".")
             assert len(model_cfg) == 3
